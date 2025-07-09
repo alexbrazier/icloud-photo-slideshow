@@ -107,7 +107,7 @@
     <script>
       // === CONFIGURATION ===
       const id = window.ICLOUD_ALBUM_ID;
-      const baseUrl = `http://${window.location.hostname}:8083/api/${id}/sharedstreams`;
+      const baseUrl = `/api/${id}/sharedstreams`;
       const transitionTime = (window.TRANSITION_TIME_SECS || 60) * 1000;
       const refreshInterval = (window.REFRESH_INTERVAL_MINS || 60) * 60 * 1000;
       const showPortraitBlur = false; // Show blurred background for portrait images
