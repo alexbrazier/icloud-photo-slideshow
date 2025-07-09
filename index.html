@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>iCloud Shared Album Slideshow</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: black;
+        height: 100%;
+        overflow: hidden;
+      }
+      .slideshow-container {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+      }
+      .slideshow-blur {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        object-fit: cover;
+        filter: blur(40px) brightness(0.7);
+        z-index: 0;
+        transition: opacity 1s ease-in-out;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .slideshow-image {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        opacity: 0;
+        transition: opacity 1s ease-in-out;
+        z-index: 1;
+      }
+      .slideshow-image.cover {
+        width: 100vw;
+        height: 100vh;
+        max-width: none;
+        max-height: none;
+        object-fit: cover;
+      }
+      .slideshow-image.contain {
+        max-width: 100%;
+        max-height: 100%;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+      }
+      .visible {
+        opacity: 1;
+      }
+      .blur-visible {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="slideshow-container">
+      <div
+        id="left-zone"
+        style="
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 25vw;
+          height: 100vh;
+          z-index: 10;
+          cursor: pointer;
+        "
+      ></div>
+      <div
+        id="right-zone"
+        style="
+          position: absolute;
+          right: 0;
+          top: 0;
+          width: 25vw;
+          height: 100vh;
+          z-index: 10;
+          cursor: pointer;
+        "
+      ></div>
+      <img
+        id="bg-blur"
+        class="slideshow-blur"
+        src=""
+        alt="Blurred Background"
+      />
+      <img id="image1" class="slideshow-image" src="" alt="Slideshow Image 1" />
+      <img id="image2" class="slideshow-image" src="" alt="Slideshow Image 2" />
+    </div>
+
+    <!-- Load config (not in git) -->
+    <script src="config.js"></script>
+
+    <script>
+      // === CONFIGURATION ===
+      const id = window.ICLOUD_ALBUM_ID;
+      const baseUrl = `http://${window.location.hostname}:8083/api/${id}/sharedstreams`;
+      const transitionTime = (window.TRANSITION_TIME_SECS || 60) * 1000;
+      const refreshInterval = (window.REFRESH_INTERVAL_MINS || 60) * 60 * 1000;
+      const showPortraitBlur = false; // Show blurred background for portrait images
+
+      const sharedAlbumEndpoint = `${baseUrl}/webstream`;
+      const headers = {
+        "Content-Type": "application/json",
+      };
+
+      let images = [];
+      let current = 0;
+      let imageEls = [
+        document.getElementById("image1"),
+        document.getElementById("image2"),
+      ];
+      let currentElIndex = 0;
+      let bgBlurEl = document.getElementById("bg-blur");
+      let intervalId;
+
+      async function fetchPhotos() {
+        try {
+          const res = await fetch(sharedAlbumEndpoint, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ streamCtag: null }),
+          });
+          const data = await res.json();
+
+          const photoIds = data.photos.map((p) => {
+            const derivatives = p.derivatives;
+            // get highest resolution from object
+            const highestRes = Object.keys(derivatives)
+              .map(Number)
+              .sort((a, b) => a - b);
+            return p.derivatives[highestRes[highestRes.length - 1]].checksum;
+          });
+
+          const res2 = await fetch(`${baseUrl}/webasseturls`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              photoGuids: data.photos.map((p) => p.photoGuid),
+            }),
+          });
+          const data2 = await res2.json();
+          // const expiry = new Date(data2.items[photoIds[0]].url_expiry);
+          images = photoIds.map(
+            (p) =>
+              `https://${data2.items[p].url_location}${data2.items[p].url_path}`
+          );
+          if (images.length > 0) {
+            shuffleImages();
+            startSlideshow();
+          }
+        } catch (err) {
+          console.error("Error fetching photos:", err);
+        }
+      }
+
+      function startSlideshow() {
+        clearInterval(intervalId);
+        showNextImage();
+        intervalId = setInterval(showNextImage, transitionTime);
+      }
+
+      function goToImage(index) {
+        clearInterval(intervalId);
+        if (index < 0) index = images.length - 1;
+        if (index >= images.length) index = 0;
+        current = index;
+        showNextImage();
+        intervalId = setInterval(showNextImage, transitionTime);
+      }
+
+      function shuffleImages() {
+        for (let i = images.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [images[i], images[j]] = [images[j], images[i]];
+        }
+      }
+
+      function showNextImage() {
+        const nextElIndex = 1 - currentElIndex;
+        const img = imageEls[nextElIndex];
+        const prevImg = imageEls[currentElIndex];
+
+        // Hide the next image and blurred background before loading
+        img.classList.remove("visible", "cover", "contain");
+        if (showPortraitBlur) bgBlurEl.classList.remove("blur-visible");
+
+        img.onload = function () {
+          const isLandscape = img.naturalWidth > img.naturalHeight;
+          if (isLandscape) {
+            img.classList.add("cover");
+            img.classList.remove("contain");
+            if (showPortraitBlur) bgBlurEl.classList.remove("blur-visible");
+          } else {
+            img.classList.add("contain");
+            img.classList.remove("cover");
+            if (showPortraitBlur) {
+              bgBlurEl.src = images[current];
+              bgBlurEl.classList.add("blur-visible");
+            }
+          }
+          // Only now show the new image and hide the previous
+          img.classList.add("visible");
+          prevImg.classList.remove("visible");
+        };
+
+        img.src = images[current];
+        // Do not show the image until onload fires
+
+        currentElIndex = nextElIndex;
+        current = (current + 1) % images.length;
+        if (current === 0 && images.length > 1) {
+          shuffleImages();
+        }
+      }
+
+      // Initial fetch
+      fetchPhotos();
+      setInterval(fetchPhotos, refreshInterval);
+
+      // Navigation zones
+      const leftZone = document.getElementById("left-zone");
+      const rightZone = document.getElementById("right-zone");
+
+      leftZone.addEventListener("click", () => {
+        goToImage(current - 2 < 0 ? images.length - 1 : current - 2);
+      });
+      rightZone.addEventListener("click", () => {
+        goToImage(current);
+      });
+    </script>
+  </body>
+</html>
