@@ -107,15 +107,9 @@
     <script>
       // === CONFIGURATION ===
       const id = window.ICLOUD_ALBUM_ID;
-      const baseUrl = `/api/${id}/sharedstreams`;
       const transitionTime = (window.TRANSITION_TIME_SECS || 60) * 1000;
       const refreshInterval = (window.REFRESH_INTERVAL_MINS || 60) * 60 * 1000;
       const showPortraitBlur = false; // Show blurred background for portrait images
-
-      const sharedAlbumEndpoint = `${baseUrl}/webstream`;
-      const headers = {
-        "Content-Type": "application/json",
-      };
 
       let images = [];
       let current = 0;
@@ -129,35 +123,9 @@
 
       async function fetchPhotos() {
         try {
-          const res = await fetch(sharedAlbumEndpoint, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ streamCtag: null }),
-          });
-          const data = await res.json();
-
-          const photoIds = data.photos.map((p) => {
-            const derivatives = p.derivatives;
-            // get highest resolution from object
-            const highestRes = Object.keys(derivatives)
-              .map(Number)
-              .sort((a, b) => a - b);
-            return p.derivatives[highestRes[highestRes.length - 1]].checksum;
-          });
-
-          const res2 = await fetch(`${baseUrl}/webasseturls`, {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              photoGuids: data.photos.map((p) => p.photoGuid),
-            }),
-          });
-          const data2 = await res2.json();
-          // const expiry = new Date(data2.items[photoIds[0]].url_expiry);
-          images = photoIds.map(
-            (p) =>
-              `https://${data2.items[p].url_location}${data2.items[p].url_path}`
-          );
+          const res = await fetch(`/images?albumId=${encodeURIComponent(id)}`);
+          const imagesArr = await res.json();
+          images = imagesArr;
           if (images.length > 0) {
             shuffleImages();
             startSlideshow();
