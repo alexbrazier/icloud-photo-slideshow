@@ -93,7 +93,11 @@ app.get("/", (req, res) => {
   res.type("text/html").send(fs.readFileSync(filePath));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, (err) => {
+  if (err) {
+    console.error("Error starting server:", err.message);
+    return;
+  }
   console.log(`Express server running at http://localhost:${PORT}`);
 });
 

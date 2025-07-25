@@ -63,6 +63,88 @@
       .blur-visible {
         opacity: 1;
       }
+      .settings-cog {
+        position: absolute;
+        top: 24px;
+        right: 24px;
+        width: 40px;
+        height: 40px;
+        background: rgba(80, 80, 80, 0.6);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 20;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .settings-cog.visible {
+        opacity: 1;
+      }
+      .settings-cog svg {
+        width: 24px;
+        height: 24px;
+        fill: rgba(255, 255, 255, 0.8);
+      }
+      .settings-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(60, 60, 60, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+      .settings-modal.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .settings-content {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 16px;
+        padding: 32px 24px 24px 24px;
+        min-width: 280px;
+        box-shadow: 0 4px 32px rgba(0, 0, 0, 0.15);
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        align-items: stretch;
+      }
+      .settings-content label {
+        font-size: 1rem;
+        color: #333;
+        margin-bottom: 8px;
+      }
+      .settings-content input[type="number"] {
+        width: 80px;
+        padding: 4px 8px;
+        font-size: 1rem;
+        border-radius: 6px;
+        border: 1px solid #bbb;
+      }
+      .settings-content select {
+        padding: 4px 8px;
+        font-size: 1rem;
+        border-radius: 6px;
+        border: 1px solid #bbb;
+      }
+      .settings-close {
+        position: absolute;
+        top: 18px;
+        right: 18px;
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #888;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
@@ -101,13 +183,61 @@
       <img id="image2" class="slideshow-image" src="" alt="Slideshow Image 2" />
     </div>
 
+    <!-- Settings Cog and Modal -->
+    <div class="settings-cog" id="settings-cog" title="Settings">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M19.14,12.94a7.07,7.07,0,0,0,.05-1,7.07,7.07,0,0,0-.05-1l2.11-1.65a.5.5,0,0,0,.12-.64l-2-3.46a.5.5,0,0,0-.61-.22l-2.49,1a7,7,0,0,0-1.73-1l-.38-2.65A.5.5,0,0,0,13,2h-4a.5.5,0,0,0-.5.42l-.38,2.65a7,7,0,0,0-1.73,1l-2.49-1a.5.5,0,0,0-.61.22l-2,3.46a.5.5,0,0,0,.12.64L4.86,10a7.07,7.07,0,0,0-.05,1,7.07,7.07,0,0,0,.05,1l-2.11,1.65a.5.5,0,0,0-.12.64l2,3.46a.5.5,0,0,0,.61.22l2.49-1a7,7,0,0,0,1.73,1l.38,2.65A.5.5,0,0,0,9,22h4a.5.5,0,0,0,.5-.42l.38-2.65a7,7,0,0,0,1.73-1l2.49,1a.5.5,0,0,0,.61-.22l2-3.46a.5.5,0,0,0-.12-.64ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"
+        />
+      </svg>
+    </div>
+    <div class="settings-modal" id="settings-modal">
+      <div class="settings-content">
+        <label for="transition-time"
+          >Transition Time (seconds):
+          <input
+            type="number"
+            id="transition-time"
+            min="1"
+            max="600"
+            step="1"
+          />
+        </label>
+        <label for="orientation-filter"
+          >Show:
+          <select id="orientation-filter">
+            <option value="all">All Images</option>
+            <option value="landscape">Landscape Only</option>
+            <option value="portrait">Portrait Only</option>
+          </select>
+        </label>
+        <button
+          class="settings-close"
+          id="settings-close"
+          title="Close"
+          style="position: static; align-self: end; margin-top: 12px"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+
     <!-- Load config (not in git) -->
     <script src="config.js"></script>
 
     <script>
       // === CONFIGURATION ===
       const id = window.ICLOUD_ALBUM_ID;
-      const transitionTime = (window.TRANSITION_TIME_SECS || 60) * 1000;
+      // Load settings from localStorage
+      let savedSettings = {};
+      try {
+        savedSettings =
+          JSON.parse(localStorage.getItem("slideshowSettings")) || {};
+      } catch {}
+      let transitionTime =
+        (savedSettings.transitionTime || window.TRANSITION_TIME_SECS || 60) *
+        1000;
+      let orientationFilter = savedSettings.orientationFilter || "all";
       const refreshInterval = (window.REFRESH_INTERVAL_MINS || 60) * 60 * 1000;
       const showPortraitBlur = false; // Show blurred background for portrait images
 
@@ -126,6 +256,7 @@
           const res = await fetch(`/images?albumId=${encodeURIComponent(id)}`);
           const imagesArr = await res.json();
           images = imagesArr;
+          applyOrientationFilter();
           if (images.length > 0) {
             shuffleImages();
             startSlideshow();
@@ -133,6 +264,17 @@
         } catch (err) {
           console.error("Error fetching photos:", err);
         }
+      }
+
+      function applyOrientationFilter() {
+        if (orientationFilter === "all") return;
+        images = images.filter((url) => {
+          const img = new Image();
+          img.src = url;
+          // This is async, so we need to precompute orientation elsewhere
+          // For now, skip filtering here; will handle in showNextImage
+          return true;
+        });
       }
 
       function startSlideshow() {
@@ -168,6 +310,16 @@
 
         img.onload = function () {
           const isLandscape = img.naturalWidth > img.naturalHeight;
+          // Orientation filter logic
+          if (
+            (orientationFilter === "landscape" && !isLandscape) ||
+            (orientationFilter === "portrait" && isLandscape)
+          ) {
+            // Skip this image and go to next
+            current = (current + 1) % images.length;
+            showNextImage();
+            return;
+          }
           if (isLandscape) {
             img.classList.add("cover");
             img.classList.remove("contain");
@@ -209,6 +361,80 @@
       rightZone.addEventListener("click", () => {
         goToImage(current);
       });
+
+      // Keyboard arrow navigation
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft") {
+          goToImage(current - 2 < 0 ? images.length - 1 : current - 2);
+        } else if (e.key === "ArrowRight") {
+          goToImage(current);
+        }
+      });
+
+      // Settings UI logic
+      const settingsCog = document.getElementById("settings-cog");
+      const settingsModal = document.getElementById("settings-modal");
+      const settingsClose = document.getElementById("settings-close");
+      const transitionInput = document.getElementById("transition-time");
+      const orientationSelect = document.getElementById("orientation-filter");
+      let settingsVisible = false;
+      let hideCogTimeout;
+
+      function showCog() {
+        settingsCog.classList.add("visible");
+        clearTimeout(hideCogTimeout);
+        hideCogTimeout = setTimeout(() => {
+          settingsCog.classList.remove("visible");
+        }, 2500);
+      }
+
+      function openSettings() {
+        settingsModal.classList.add("open");
+        settingsVisible = true;
+      }
+      function closeSettings() {
+        settingsModal.classList.remove("open");
+        settingsVisible = false;
+      }
+
+      settingsCog.addEventListener("click", openSettings);
+      settingsClose.addEventListener("click", closeSettings);
+      transitionInput.value = transitionTime / 1000;
+      orientationSelect.value = orientationFilter;
+      transitionInput.addEventListener("change", (e) => {
+        let val = parseInt(e.target.value, 10);
+        if (isNaN(val) || val < 1) val = 1;
+        if (val > 600) val = 600;
+        transitionInput.value = val;
+        transitionTime = val * 1000;
+        window.TRANSITION_TIME_SECS = val;
+        // Save to localStorage
+        localStorage.setItem(
+          "slideshowSettings",
+          JSON.stringify({
+            transitionTime: val,
+            orientationFilter,
+          })
+        );
+        // Restart slideshow with new time
+        startSlideshow();
+      });
+      orientationSelect.addEventListener("change", (e) => {
+        orientationFilter = e.target.value;
+        localStorage.setItem(
+          "slideshowSettings",
+          JSON.stringify({
+            transitionTime: transitionTime / 1000,
+            orientationFilter,
+          })
+        );
+        current = 0;
+        showNextImage();
+      });
+
+      // Show cog on mousemove or touch
+      document.addEventListener("mousemove", showCog);
+      document.addEventListener("touchstart", showCog);
     </script>
   </body>
 </html>
