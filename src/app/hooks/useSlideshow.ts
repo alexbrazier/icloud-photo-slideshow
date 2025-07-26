@@ -49,9 +49,9 @@ export function useSlideshow(
   );
 
   // Fetch images and periodically refresh
-  const fetchPhotos = async (albumId: string) => {
+  const fetchPhotos = async (albumId?: string) => {
     try {
-      const res = await fetch(`/api/images?albumId=${albumId}`);
+      const res = await fetch(`/api/images?albumId=${albumId || ""}`);
       const imagesArr = await res.json();
       setImages(imagesArr);
     } catch (err) {
@@ -72,10 +72,6 @@ export function useSlideshow(
   };
 
   useEffect(() => {
-    if (!albumId) {
-      console.error("No albumId provided for slideshow");
-      return;
-    }
     fetchPhotos(albumId);
     const refresh = setInterval(
       () => fetchPhotos(albumId),

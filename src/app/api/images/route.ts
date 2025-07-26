@@ -84,10 +84,13 @@ async function fetchAndCacheImages(albumId: string) {
 export async function GET(req: NextRequest) {
   try {
     const now = Date.now();
-    const albumId = req.nextUrl.searchParams.get("albumId");
+    let albumId = req.nextUrl.searchParams.get("albumId");
+    if (!albumId) {
+      albumId = process.env.ICLOUD_ALBUM_ID ?? null;
+    }
     if (!albumId) {
       return NextResponse.json(
-        { error: "albumId query parameter is required" },
+        { error: "albumId is required (query or env)" },
         { status: 400 }
       );
     }

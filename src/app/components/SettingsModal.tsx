@@ -11,9 +11,11 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     transitionTime,
     orientationFilter,
     showTimerBar,
+    albumId,
     handleTransitionChange,
     handleOrientationChange,
     handleShowTimerBarChange,
+    handleAlbumIdChange,
   } = useSettings();
 
   if (!open) return null;
@@ -110,6 +112,26 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             style={{ marginRight: 8 }}
           />
           Show timer bar
+        </label>
+        <label
+          htmlFor="album-id"
+          style={{ fontSize: "1rem", color: "#333", marginBottom: 8 }}
+        >
+          iCloud Album ID:
+          <input
+            type="text"
+            id="album-id"
+            value={albumId}
+            onChange={(e) => handleAlbumIdChange(e.target.value)}
+            style={{
+              width: 180,
+              padding: "4px 8px",
+              fontSize: "1rem",
+              borderRadius: 6,
+              border: "1px solid #bbb",
+              marginLeft: 8,
+            }}
+          />
         </label>
         <button
           onClick={onClose}

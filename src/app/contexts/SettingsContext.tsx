@@ -7,15 +7,18 @@ interface Settings {
   transitionTime: number;
   orientationFilter: "all" | "landscape" | "portrait";
   showTimerBar: boolean;
+  albumId: string;
 }
 
 interface SettingsContextType {
   transitionTime: number;
   orientationFilter: "all" | "landscape" | "portrait";
   showTimerBar: boolean;
+  albumId: string;
   handleTransitionChange: (val: number) => void;
   handleOrientationChange: (val: "all" | "landscape" | "portrait") => void;
   handleShowTimerBarChange: (val: boolean) => void;
+  handleAlbumIdChange: (val: string) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(
@@ -32,6 +35,7 @@ const loadSettings = (): Settings => {
           transitionTime: parsed.transitionTime || DEFAULT_TRANSITION_SECS,
           orientationFilter: parsed.orientationFilter || "all",
           showTimerBar: !!parsed.showTimerBar,
+          albumId: parsed.albumId || "",
         };
       } catch {}
     }
@@ -40,6 +44,7 @@ const loadSettings = (): Settings => {
     transitionTime: DEFAULT_TRANSITION_SECS,
     orientationFilter: "all",
     showTimerBar: false,
+    albumId: "",
   };
 };
 
@@ -72,15 +77,23 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     saveSettings(newSettings);
   };
 
+  const handleAlbumIdChange = (val: string) => {
+    const newSettings = { ...settings, albumId: val };
+    setSettings(newSettings);
+    saveSettings(newSettings);
+  };
+
   return (
     <SettingsContext.Provider
       value={{
         transitionTime: settings.transitionTime,
         orientationFilter: settings.orientationFilter,
         showTimerBar: settings.showTimerBar,
+        albumId: settings.albumId,
         handleTransitionChange,
         handleOrientationChange,
         handleShowTimerBarChange,
+        handleAlbumIdChange,
       }}
     >
       {children}
@@ -89,9 +102,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 }
 
 export function useSettings() {
-  const context = useContext(SettingsContext);
-  if (context === undefined) {
-    throw new Error("useSettings must be used within a SettingsProvider");
-  }
-  return context;
+  const ctx = useContext(SettingsContext);
+  if (!ctx) throw new Error("useSettings must be used within SettingsProvider");
+  return ctx;
 }
