@@ -4,35 +4,14 @@ import { useSettings } from "../contexts/SettingsContext";
 import { useScreenOrientation } from "../hooks/useScreenOrientation";
 import { CrossfadeImages } from "./CrossfadeImages";
 import { TimerBar } from "./TimerBar";
+import { NavigationZone } from "./NavigationZone";
 
 interface SlideshowProps {
   albumId: string;
+  controlsVisible?: boolean; // Optional prop for controlling visibility of navigation zones
 }
 
-interface NavigationZoneProps {
-  side: "left" | "right";
-  onClick: () => void;
-  disabled: boolean;
-}
-
-function NavigationZone({ side, onClick, disabled }: NavigationZoneProps) {
-  return (
-    <div
-      style={{
-        position: "absolute",
-        [side]: 0,
-        top: 0,
-        width: "25vw",
-        height: "100vh",
-        zIndex: 10,
-        cursor: disabled ? "default" : "pointer",
-      }}
-      onClick={() => !disabled && onClick()}
-    />
-  );
-}
-
-export function Slideshow({ albumId }: SlideshowProps) {
+export function Slideshow({ albumId, controlsVisible }: SlideshowProps) {
   const { transitionTime, orientationFilter, showTimerBar } = useSettings();
   const { currentImage, nextImage, goNext, goPrev } = useSlideshow(
     albumId,
@@ -53,11 +32,15 @@ export function Slideshow({ albumId }: SlideshowProps) {
       }}
     >
       {/* Navigation zones */}
-      <NavigationZone side="left" onClick={goPrev} disabled={isTransitioning} />
+      <NavigationZone
+        side="left"
+        onClick={goPrev}
+        controlsVisible={controlsVisible}
+      />
       <NavigationZone
         side="right"
         onClick={goNext}
-        disabled={isTransitioning}
+        controlsVisible={controlsVisible}
       />
       {/* Slideshow images */}
       <CrossfadeImages

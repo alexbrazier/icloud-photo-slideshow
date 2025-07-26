@@ -8,13 +8,16 @@ import { useSettings } from "./contexts/SettingsContext";
 
 export default function Home() {
   const { albumId } = useSettings();
-  const cogVisible = useCogVisibility();
+  const controlsVisible = useCogVisibility();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <>
-      <Slideshow albumId={albumId} />
-      <SettingsCog visible={cogVisible} onClick={() => setSettingsOpen(true)} />
+      <Slideshow albumId={albumId} controlsVisible={controlsVisible} />
+      <SettingsCog
+        visible={controlsVisible}
+        onClick={() => setSettingsOpen(true)}
+      />
       <SettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

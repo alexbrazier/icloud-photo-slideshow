@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { Orientation } from "./useSlideshow";
 
-const DEFAULT_TRANSITION_SECS = 5;
+const DEFAULT_TRANSITION_SECS = 60;
 
 export function useSettings() {
   const [transitionTime, setTransitionTime] = useState<number>(() => {
@@ -17,7 +18,7 @@ export function useSettings() {
   });
 
   const [orientationFilter, setOrientationFilter] = useState<
-    "all" | "landscape" | "portrait"
+    "all" | Orientation
   >(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("slideshowSettings");
@@ -54,7 +55,7 @@ export function useSettings() {
     );
   };
 
-  const handleOrientationChange = (val: "all" | "landscape" | "portrait") => {
+  const handleOrientationChange = (val: "all" | Orientation) => {
     setOrientationFilter(val);
     localStorage.setItem(
       "slideshowSettings",
