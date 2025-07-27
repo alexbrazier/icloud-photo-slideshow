@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { useSlideshow } from "../hooks/useSlideshow";
 import { useSettings } from "../contexts/SettingsContext";
 import { useScreenOrientation } from "../hooks/useScreenOrientation";
@@ -19,7 +19,6 @@ export function Slideshow({ albumId, controlsVisible }: SlideshowProps) {
     orientationFilter
   );
   const screenOrientation = useScreenOrientation();
-  const [isTransitioning, setIsTransitioning] = useState(false);
 
   return (
     <div
@@ -47,7 +46,6 @@ export function Slideshow({ albumId, controlsVisible }: SlideshowProps) {
         currentImage={currentImage}
         nextImage={nextImage}
         screenOrientation={screenOrientation}
-        onTransitionChange={setIsTransitioning}
       />
       {/* Timer bar */}
       {showTimerBar && (

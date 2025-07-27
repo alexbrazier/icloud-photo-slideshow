@@ -7,6 +7,7 @@ interface Settings {
   transitionTime: number;
   orientationFilter: "all" | "landscape" | "portrait";
   showTimerBar: boolean;
+  showWeather: boolean;
   albumId: string;
 }
 
@@ -14,10 +15,12 @@ interface SettingsContextType {
   transitionTime: number;
   orientationFilter: "all" | "landscape" | "portrait";
   showTimerBar: boolean;
+  showWeather: boolean;
   albumId: string;
   handleTransitionChange: (val: number) => void;
   handleOrientationChange: (val: "all" | "landscape" | "portrait") => void;
   handleShowTimerBarChange: (val: boolean) => void;
+  handleShowWeatherChange: (val: boolean) => void;
   handleAlbumIdChange: (val: string) => void;
 }
 
@@ -26,26 +29,31 @@ const SettingsContext = createContext<SettingsContextType | undefined>(
 );
 
 const loadSettings = (): Settings => {
+  const defaultSettings: Settings = {
+    transitionTime: DEFAULT_TRANSITION_SECS,
+    orientationFilter: "all",
+    showTimerBar: false,
+    showWeather: false,
+    albumId: "",
+  };
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem("slideshowSettings");
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         return {
-          transitionTime: parsed.transitionTime || DEFAULT_TRANSITION_SECS,
-          orientationFilter: parsed.orientationFilter || "all",
-          showTimerBar: !!parsed.showTimerBar,
-          albumId: parsed.albumId || "",
+          transitionTime:
+            parsed.transitionTime || defaultSettings.transitionTime,
+          orientationFilter:
+            parsed.orientationFilter || defaultSettings.orientationFilter,
+          showTimerBar: parsed.showTimerBar ?? defaultSettings.showTimerBar,
+          showWeather: parsed.showWeather ?? defaultSettings.showWeather,
+          albumId: parsed.albumId || defaultSettings.albumId,
         };
       } catch {}
     }
   }
-  return {
-    transitionTime: DEFAULT_TRANSITION_SECS,
-    orientationFilter: "all",
-    showTimerBar: false,
-    albumId: "",
-  };
+  return defaultSettings;
 };
 
 const saveSettings = (settings: Settings) => {
@@ -77,6 +85,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     saveSettings(newSettings);
   };
 
+  const handleShowWeatherChange = (val: boolean) => {
+    const newSettings = { ...settings, showWeather: val };
+    setSettings(newSettings);
+    saveSettings(newSettings);
+  };
+
   const handleAlbumIdChange = (val: string) => {
     const newSettings = { ...settings, albumId: val };
     setSettings(newSettings);
@@ -89,10 +103,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         transitionTime: settings.transitionTime,
         orientationFilter: settings.orientationFilter,
         showTimerBar: settings.showTimerBar,
+        showWeather: settings.showWeather,
         albumId: settings.albumId,
         handleTransitionChange,
         handleOrientationChange,
         handleShowTimerBarChange,
+        handleShowWeatherChange,
         handleAlbumIdChange,
       }}
     >

@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import React, { useEffect } from "react";
+import React from "react";
 import { Orientation } from "../hooks/useSlideshow";
 import { useCrossfade, ImageData } from "../hooks/useCrossfade";
 
@@ -7,7 +7,6 @@ interface CrossfadeImagesProps {
   currentImage?: ImageData;
   nextImage?: ImageData;
   screenOrientation: Orientation;
-  onTransitionChange?: (isTransitioning: boolean) => void;
 }
 
 interface SlideImageProps {
@@ -60,15 +59,9 @@ export function CrossfadeImages({
   currentImage,
   nextImage,
   screenOrientation,
-  onTransitionChange,
 }: CrossfadeImagesProps) {
   const { isTransitioning, displayedCurrentImage, displayedNextImage } =
     useCrossfade(currentImage, nextImage);
-
-  // Notify parent of transition state changes
-  useEffect(() => {
-    onTransitionChange?.(isTransitioning);
-  }, [isTransitioning, onTransitionChange]);
 
   if (!displayedCurrentImage) {
     return null;

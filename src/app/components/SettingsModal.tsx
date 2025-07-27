@@ -11,10 +11,12 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     transitionTime,
     orientationFilter,
     showTimerBar,
+    showWeather,
     albumId,
     handleTransitionChange,
     handleOrientationChange,
     handleShowTimerBarChange,
+    handleShowWeatherChange,
     handleAlbumIdChange,
   } = useSettings();
 
@@ -112,6 +114,19 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             style={{ marginRight: 8 }}
           />
           Show timer bar
+        </label>
+        <label
+          htmlFor="show-weather"
+          style={{ fontSize: "1rem", color: "#333", marginBottom: 8 }}
+        >
+          <input
+            type="checkbox"
+            id="show-weather"
+            checked={showWeather}
+            onChange={(e) => handleShowWeatherChange(e.target.checked)}
+            style={{ marginRight: 8 }}
+          />
+          Show weather widget
         </label>
         <label
           htmlFor="album-id"
