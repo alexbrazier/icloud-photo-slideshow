@@ -100,23 +100,17 @@ export async function GET(req: NextRequest) {
       cacheExists && now - cacheTimestamp[albumId] < CACHE_TTL;
     const urlsStillValid =
       cacheExists && areUrlsStillValid(imagesCache[albumId]);
-    const cacheValid = cacheTimestampValid && urlsStillValid;
 
-    if (cacheExists && cacheValid) {
-      // Cache is valid, return it
+    if (cacheExists && cacheTimestampValid && urlsStillValid) {
+      // Cache is completely valid, return it
       return NextResponse.json(imagesCache[albumId]);
-    } else if (cacheExists && cacheTimestampValid && !urlsStillValid) {
-      // URLs are expiring soon, fetch fresh data synchronously
-      const images = await fetchAndCacheImages(albumId);
-      return NextResponse.json(images);
-    } else if (cacheExists && !cacheTimestampValid) {
-      // Cache timestamp is old, refresh in background but return existing cache
+    } else if (cacheExists && !cacheTimestampValid && urlsStillValid) {
+      // Cache timestamp is old but URLs are still valid, refresh in background but return existing cache
       fetchAndCacheImages(albumId).catch(() => {});
       return NextResponse.json(imagesCache[albumId]);
     } else {
-      // No cache exists, fetch fresh data
-      const images = await fetchAndCacheImages(albumId);
-      return NextResponse.json(images);
+      // Either no cache exists, URLs are expiring soon, or both are invalid - fetch fresh data
+      return NextResponse.json(await fetchAndCacheImages(albumId));
     }
   } catch (err: any) {
     return NextResponse.json(

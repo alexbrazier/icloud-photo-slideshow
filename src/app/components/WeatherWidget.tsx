@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
+import { useSettings } from "../contexts/SettingsContext";
 
 interface WeatherData {
   temperature: number;
@@ -81,20 +83,44 @@ export function WeatherWidget() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { weatherLatitude, weatherLongitude } = useSettings();
 
   useEffect(() => {
     const fetchWeather = async () => {
       try {
         setLoading(true);
 
-        // Get user's location
-        const position = await new Promise<GeolocationPosition>(
-          (resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject);
-          }
-        );
+        let latitude: number;
+        let longitude: number;
 
-        const { latitude, longitude } = position.coords;
+        // Check if manual coordinates are provided and valid
+        if (weatherLatitude && weatherLongitude) {
+          const lat = parseFloat(weatherLatitude);
+          const lon = parseFloat(weatherLongitude);
+
+          if (
+            !isNaN(lat) &&
+            !isNaN(lon) &&
+            lat >= -90 &&
+            lat <= 90 &&
+            lon >= -180 &&
+            lon <= 180
+          ) {
+            latitude = lat;
+            longitude = lon;
+          } else {
+            throw new Error("Invalid manual coordinates provided");
+          }
+        } else {
+          // Get user's location
+          const position = await new Promise<GeolocationPosition>(
+            (resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject);
+            }
+          );
+          latitude = position.coords.latitude;
+          longitude = position.coords.longitude;
+        }
 
         // Fetch weather data from our API route
         const response = await fetch(
@@ -108,9 +134,9 @@ export function WeatherWidget() {
 
         setWeather(data);
         setError(null);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Weather fetch error:", err);
-        setError("Unable to load weather");
+        setError(err?.message || "Failed to fetch weather data");
       } finally {
         setLoading(false);
       }
@@ -121,7 +147,7 @@ export function WeatherWidget() {
     const interval = setInterval(fetchWeather, 30 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [weatherLatitude, weatherLongitude]);
 
   if (loading) {
     return (

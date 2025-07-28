@@ -13,11 +13,9 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     showTimerBar,
     showWeather,
     albumId,
-    handleTransitionChange,
-    handleOrientationChange,
-    handleShowTimerBarChange,
-    handleShowWeatherChange,
-    handleAlbumIdChange,
+    weatherLatitude,
+    weatherLongitude,
+    updateSetting,
   } = useSettings();
 
   if (!open) return null;
@@ -65,7 +63,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             max={600}
             step={1}
             value={transitionTime}
-            onChange={(e) => handleTransitionChange(Number(e.target.value))}
+            onChange={(e) => updateSetting("transitionTime", Number(e.target.value))}
             style={{
               width: 80,
               padding: "4px 8px",
@@ -85,7 +83,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             id="orientation-filter"
             value={orientationFilter}
             onChange={(e) =>
-              handleOrientationChange(
+              updateSetting("orientationFilter", 
                 e.target.value as "all" | "landscape" | "portrait"
               )
             }
@@ -110,7 +108,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             type="checkbox"
             id="show-timer-bar"
             checked={showTimerBar}
-            onChange={(e) => handleShowTimerBarChange(e.target.checked)}
+            onChange={(e) => updateSetting("showTimerBar", e.target.checked)}
             style={{ marginRight: 8 }}
           />
           Show timer bar
@@ -123,11 +121,66 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             type="checkbox"
             id="show-weather"
             checked={showWeather}
-            onChange={(e) => handleShowWeatherChange(e.target.checked)}
+            onChange={(e) => updateSetting("showWeather", e.target.checked)}
             style={{ marginRight: 8 }}
           />
           Show weather widget
         </label>
+        {showWeather && (
+          <div style={{ marginLeft: 24, marginTop: -8 }}>
+            <div style={{ fontSize: "0.9rem", color: "#666", marginBottom: 8 }}>
+              Manual coordinates (optional):
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <label
+                htmlFor="weather-latitude"
+                style={{ fontSize: "0.9rem", color: "#555" }}
+              >
+                Lat:
+                <input
+                  type="text"
+                  id="weather-latitude"
+                  placeholder="e.g. 37.7749"
+                  value={weatherLatitude}
+                  onChange={(e) => updateSetting("weatherLatitude", e.target.value)}
+                  style={{
+                    width: 90,
+                    padding: "2px 6px",
+                    fontSize: "0.9rem",
+                    borderRadius: 4,
+                    border: "1px solid #ccc",
+                    marginLeft: 4,
+                  }}
+                />
+              </label>
+              <label
+                htmlFor="weather-longitude"
+                style={{ fontSize: "0.9rem", color: "#555" }}
+              >
+                Lon:
+                <input
+                  type="text"
+                  id="weather-longitude"
+                  placeholder="e.g. -122.4194"
+                  value={weatherLongitude}
+                  onChange={(e) => updateSetting("weatherLongitude", e.target.value)}
+                  style={{
+                    width: 90,
+                    padding: "2px 6px",
+                    fontSize: "0.9rem",
+                    borderRadius: 4,
+                    border: "1px solid #ccc",
+                    marginLeft: 4,
+                  }}
+                />
+              </label>
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#888", marginTop: 4 }}>
+              If set, these coordinates will be used instead of your device
+              location
+            </div>
+          </div>
+        )}
         <label
           htmlFor="album-id"
           style={{ fontSize: "1rem", color: "#333", marginBottom: 8 }}
@@ -137,7 +190,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             type="text"
             id="album-id"
             value={albumId}
-            onChange={(e) => handleAlbumIdChange(e.target.value)}
+            onChange={(e) => updateSetting("albumId", e.target.value)}
             style={{
               width: 180,
               padding: "4px 8px",

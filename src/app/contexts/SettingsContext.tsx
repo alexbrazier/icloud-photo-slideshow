@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useState, ReactNode } from "react";
 
-const DEFAULT_TRANSITION_SECS = 5;
+const DEFAULT_TRANSITION_SECS = 60;
 
 interface Settings {
   transitionTime: number;
@@ -9,19 +9,12 @@ interface Settings {
   showTimerBar: boolean;
   showWeather: boolean;
   albumId: string;
+  weatherLatitude: string;
+  weatherLongitude: string;
 }
 
-interface SettingsContextType {
-  transitionTime: number;
-  orientationFilter: "all" | "landscape" | "portrait";
-  showTimerBar: boolean;
-  showWeather: boolean;
-  albumId: string;
-  handleTransitionChange: (val: number) => void;
-  handleOrientationChange: (val: "all" | "landscape" | "portrait") => void;
-  handleShowTimerBarChange: (val: boolean) => void;
-  handleShowWeatherChange: (val: boolean) => void;
-  handleAlbumIdChange: (val: string) => void;
+interface SettingsContextType extends Settings {
+  updateSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(
@@ -35,22 +28,25 @@ const loadSettings = (): Settings => {
     showTimerBar: false,
     showWeather: false,
     albumId: "",
+    weatherLatitude: "",
+    weatherLongitude: "",
   };
+
   if (typeof window !== "undefined") {
     const saved = localStorage.getItem("slideshowSettings");
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        // Merge saved settings with defaults, ensuring all properties exist
         return {
-          transitionTime:
-            parsed.transitionTime || defaultSettings.transitionTime,
-          orientationFilter:
-            parsed.orientationFilter || defaultSettings.orientationFilter,
-          showTimerBar: parsed.showTimerBar ?? defaultSettings.showTimerBar,
-          showWeather: parsed.showWeather ?? defaultSettings.showWeather,
-          albumId: parsed.albumId || defaultSettings.albumId,
+          ...defaultSettings,
+          ...Object.fromEntries(
+            Object.entries(parsed).filter(([key]) => key in defaultSettings)
+          ),
         };
-      } catch {}
+      } catch {
+        // If parsing fails, return defaults
+      }
     }
   }
   return defaultSettings;
@@ -65,34 +61,12 @@ const saveSettings = (settings: Settings) => {
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(loadSettings);
 
-  const handleTransitionChange = (val: number) => {
-    if (isNaN(val) || val < 1) val = 1;
-    if (val > 600) val = 600;
-    const newSettings = { ...settings, transitionTime: val };
-    setSettings(newSettings);
-    saveSettings(newSettings);
-  };
-
-  const handleOrientationChange = (val: "all" | "landscape" | "portrait") => {
-    const newSettings = { ...settings, orientationFilter: val };
-    setSettings(newSettings);
-    saveSettings(newSettings);
-  };
-
-  const handleShowTimerBarChange = (val: boolean) => {
-    const newSettings = { ...settings, showTimerBar: val };
-    setSettings(newSettings);
-    saveSettings(newSettings);
-  };
-
-  const handleShowWeatherChange = (val: boolean) => {
-    const newSettings = { ...settings, showWeather: val };
-    setSettings(newSettings);
-    saveSettings(newSettings);
-  };
-
-  const handleAlbumIdChange = (val: string) => {
-    const newSettings = { ...settings, albumId: val };
+  // Generic handler to update any setting
+  const updateSetting = <K extends keyof Settings>(
+    key: K,
+    value: Settings[K]
+  ) => {
+    const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
     saveSettings(newSettings);
   };
@@ -100,16 +74,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   return (
     <SettingsContext.Provider
       value={{
-        transitionTime: settings.transitionTime,
-        orientationFilter: settings.orientationFilter,
-        showTimerBar: settings.showTimerBar,
-        showWeather: settings.showWeather,
-        albumId: settings.albumId,
-        handleTransitionChange,
-        handleOrientationChange,
-        handleShowTimerBarChange,
-        handleShowWeatherChange,
-        handleAlbumIdChange,
+        ...settings,
+        updateSetting,
       }}
     >
       {children}
