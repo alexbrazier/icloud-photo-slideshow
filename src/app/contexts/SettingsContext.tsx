@@ -8,6 +8,7 @@ interface Settings {
   orientationFilter: "all" | "landscape" | "portrait";
   showTimerBar: boolean;
   showWeather: boolean;
+  showClock: boolean;
   albumId: string;
   weatherLatitude: string;
   weatherLongitude: string;
@@ -27,6 +28,7 @@ const loadSettings = (): Settings => {
     orientationFilter: "all",
     showTimerBar: false,
     showWeather: false,
+    showClock: false,
     albumId: "",
     weatherLatitude: "",
     weatherLongitude: "",

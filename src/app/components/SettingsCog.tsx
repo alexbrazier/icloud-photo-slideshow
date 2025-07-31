@@ -20,7 +20,7 @@ export function SettingsCog({ visible, onClick }: SettingsCogProps) {
         alignItems: "center",
         justifyContent: "center",
         cursor: "pointer",
-        zIndex: 20,
+        zIndex: 200,
         opacity: visible ? 1 : 0,
         transition: "opacity 0.3s",
       }}

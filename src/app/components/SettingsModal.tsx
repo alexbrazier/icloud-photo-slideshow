@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useSettings } from "../contexts/SettingsContext";
 
 interface SettingsModalProps {
@@ -12,11 +12,20 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     orientationFilter,
     showTimerBar,
     showWeather,
+    showClock,
     albumId,
     weatherLatitude,
     weatherLongitude,
     updateSetting,
   } = useSettings();
+
+  const [localLatitude, setLocalLatitude] = useState(weatherLatitude);
+  const [localLongitude, setLocalLongitude] = useState(weatherLongitude);
+
+  useEffect(() => {
+    setLocalLatitude(weatherLatitude);
+    setLocalLongitude(weatherLongitude);
+  }, [weatherLatitude, weatherLongitude]);
 
   if (!open) return null;
   return (
@@ -63,7 +72,9 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             max={600}
             step={1}
             value={transitionTime}
-            onChange={(e) => updateSetting("transitionTime", Number(e.target.value))}
+            onChange={(e) =>
+              updateSetting("transitionTime", Number(e.target.value))
+            }
             style={{
               width: 80,
               padding: "4px 8px",
@@ -83,7 +94,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             id="orientation-filter"
             value={orientationFilter}
             onChange={(e) =>
-              updateSetting("orientationFilter", 
+              updateSetting(
+                "orientationFilter",
                 e.target.value as "all" | "landscape" | "portrait"
               )
             }
@@ -126,6 +138,19 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           />
           Show weather widget
         </label>
+        <label
+          htmlFor="show-clock"
+          style={{ fontSize: "1rem", color: "#333", marginBottom: 8 }}
+        >
+          <input
+            type="checkbox"
+            id="show-clock"
+            checked={showClock}
+            onChange={(e) => updateSetting("showClock", e.target.checked)}
+            style={{ marginRight: 8 }}
+          />
+          Show clock widget
+        </label>
         {showWeather && (
           <div style={{ marginLeft: 24, marginTop: -8 }}>
             <div style={{ fontSize: "0.9rem", color: "#666", marginBottom: 8 }}>
@@ -141,10 +166,11 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   type="text"
                   id="weather-latitude"
                   placeholder="e.g. 37.7749"
-                  value={weatherLatitude}
-                  onChange={(e) => updateSetting("weatherLatitude", e.target.value)}
+                  value={localLatitude}
+                  onChange={(e) => setLocalLatitude(e.target.value)}
+                  onBlur={() => updateSetting("weatherLatitude", localLatitude)}
                   style={{
-                    width: 90,
+                    width: 150,
                     padding: "2px 6px",
                     fontSize: "0.9rem",
                     borderRadius: 4,
@@ -162,10 +188,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   type="text"
                   id="weather-longitude"
                   placeholder="e.g. -122.4194"
-                  value={weatherLongitude}
-                  onChange={(e) => updateSetting("weatherLongitude", e.target.value)}
+                  value={localLongitude}
+                  onChange={(e) => setLocalLongitude(e.target.value)}
+                  onBlur={() =>
+                    updateSetting("weatherLongitude", localLongitude)
+                  }
                   style={{
-                    width: 90,
+                    width: 150,
                     padding: "2px 6px",
                     fontSize: "0.9rem",
                     borderRadius: 4,
