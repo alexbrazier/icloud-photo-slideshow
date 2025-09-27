@@ -9,12 +9,12 @@ const cacheTimestamp: Record<string, number> = {};
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 function areUrlsStillValid(images: Array<{ url_expiry: string }>): boolean {
-  const now = Date.now();
-  const oneHourFromNow = now + CACHE_TTL;
+  if (!images || images.length === 0) return false;
+  const oneHourFromNow = Date.now() + CACHE_TTL;
 
   // Check only the first image as they all have the same expiry
   const expiryTime = new Date(images[0].url_expiry).getTime();
-  return expiryTime > oneHourFromNow;
+  return Number.isFinite(expiryTime) && expiryTime > oneHourFromNow;
 }
 
 async function fetchApple(albumId: string, endpoint: string, data: any) {
@@ -33,31 +33,72 @@ async function fetchAndCacheImages(albumId: string) {
   const webstream = await fetchApple(albumId, "webstream", {
     streamCtag: null,
   });
-  const photoData = webstream.photos.map((p: any) => {
-    const derivatives = p.derivatives as Record<
-      string,
-      {
+
+  const photos = Array.isArray(webstream?.photos) ? webstream.photos : [];
+  const photoData = photos
+    .map((p: any) => {
+      const derivatives = p?.derivatives as
+        | Record<
+            string,
+            {
+              checksum: string;
+              height: string | number;
+              width: string | number;
+            }
+          >
+        | undefined as
+        | Record<
+            string,
+            {
+              checksum: string;
+              height: string | number;
+              width: string | number;
+            }
+          >
+        | undefined;
+
+      if (!derivatives || Object.keys(derivatives).length === 0) return null;
+
+      // Pick the largest derivative by pixel count (width * height)
+      let best: {
         checksum: string;
-        height: string;
-        width: string;
+        height: string | number;
+        width: string | number;
+      } | null = null;
+      let maxPixels = -1;
+      for (const d of Object.values(derivatives)) {
+        const w = Number((d as any).width) || 0;
+        const h = Number((d as any).height) || 0;
+        const px = w * h;
+        if (px > maxPixels) {
+          maxPixels = px;
+          best = d;
+        }
       }
-    >;
-    const highestRes = Object.keys(derivatives)
-      .map(Number)
-      .sort((a, b) => a - b);
-    const highestResData = derivatives[highestRes[highestRes.length - 1]];
 
-    // Determine orientation from width/height
-    const width = parseInt(highestResData.width);
-    const height = parseInt(highestResData.height);
-    const orientation = width > height ? "landscape" : "portrait";
+      if (!best) return null;
 
-    return {
-      checksum: highestResData.checksum,
-      photoGuid: p.photoGuid,
-      orientation,
-    };
-  });
+      const w = Number(best.width) || 0;
+      const h = Number(best.height) || 0;
+      const orientation = w >= h ? "landscape" : "portrait";
+
+      return {
+        checksum: best.checksum,
+        photoGuid: p.photoGuid,
+        orientation,
+      };
+    })
+    .filter(Boolean) as Array<{
+    checksum: string;
+    photoGuid: string;
+    orientation: string;
+  }>;
+
+  if (photoData.length === 0) {
+    imagesCache[albumId] = [];
+    cacheTimestamp[albumId] = Date.now();
+    return [];
+  }
 
   const webasseturls: {
     items: Record<
@@ -68,13 +109,22 @@ async function fetchAndCacheImages(albumId: string) {
     photoGuids: photoData.map((p: any) => p.photoGuid),
   });
 
-  const images = photoData.map((p: any) => ({
-    url: `https://${webasseturls.items[p.checksum].url_location}${
-      webasseturls.items[p.checksum].url_path
-    }`,
-    orientation: p.orientation,
-    url_expiry: webasseturls.items[p.checksum].url_expiry,
-  }));
+  const items = webasseturls?.items ?? {};
+  const images = photoData
+    .map((p) => {
+      const item = items[p.checksum];
+      if (!item) return null;
+      return {
+        url: `https://${item.url_location}${item.url_path}`,
+        orientation: p.orientation,
+        url_expiry: item.url_expiry,
+      };
+    })
+    .filter(Boolean) as Array<{
+    url: string;
+    orientation: string;
+    url_expiry: string;
+  }>;
 
   imagesCache[albumId] = images;
   cacheTimestamp[albumId] = Date.now();
