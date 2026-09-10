@@ -3,4 +3,5 @@ config.js
 .DS_Store
 .next
 .env*
+*.tsbuildinfo
 

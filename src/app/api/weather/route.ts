@@ -56,13 +56,15 @@ export async function GET(req: NextRequest) {
     rainChance = Math.round((rainyPeriods.length / next24Hours.length) * 100);
 
     // Calculate daily high and low from next 24 hours
-    const temperatures = next24Hours.map(
-      (period: {
-        data: { instant: { details: { air_temperature: number } } };
-      }) => period.data.instant.details.air_temperature
-    );
-    const dailyHigh = Math.max(...temperatures);
-    const dailyLow = Math.min(...temperatures);
+    const temperatures = next24Hours
+      .map(
+        (period: {
+          data?: { instant?: { details?: { air_temperature?: number } } };
+        }) => period.data?.instant?.details?.air_temperature
+      )
+      .filter((t: number | undefined): t is number => typeof t === "number");
+    const dailyHigh = temperatures.length ? Math.max(...temperatures) : undefined;
+    const dailyLow = temperatures.length ? Math.min(...temperatures) : undefined;
 
     // Convert symbol code to readable condition
     const getConditionFromSymbol = (symbolCode: string) => {

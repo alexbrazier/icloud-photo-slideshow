@@ -51,9 +51,15 @@ export function useSlideshow(
   // Fetch images and periodically refresh
   const fetchPhotos = async (albumId?: string) => {
     try {
-      const res = await fetch(`/api/images?albumId=${albumId || ""}`);
-      const imagesArr = await res.json();
-      setImages(imagesArr);
+      const res = await fetch(
+        `/api/images?albumId=${encodeURIComponent(albumId || "")}`
+      );
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data)) {
+        console.error("Error fetching photos:", data?.error || res.statusText);
+        return;
+      }
+      setImages(data);
     } catch (err) {
       console.error("Error fetching photos:", err);
     }

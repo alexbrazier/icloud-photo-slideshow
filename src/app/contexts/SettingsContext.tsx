@@ -1,5 +1,11 @@
 "use client";
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 
 const DEFAULT_TRANSITION_SECS = 60;
 
@@ -37,7 +43,8 @@ type SettingParser = (raw: string) => Partial<Settings> | undefined;
 
 const parseBoolean = (raw: string): boolean | undefined => {
   const value = raw.trim().toLowerCase();
-  if (["true", "1", "yes", "on"].includes(value)) return true;
+  // A bare param (e.g. `?clock`) counts as true
+  if (["", "true", "1", "yes", "on"].includes(value)) return true;
   if (["false", "0", "no", "off"].includes(value)) return false;
   return undefined;
 };
@@ -83,31 +90,25 @@ const parseQuerySettings = (search: string): Partial<Settings> => {
   return result;
 };
 
-const loadSettings = (): Settings => {
-  let settings: Settings = { ...defaultSettings };
+// Settings persisted in localStorage (query params are a separate override layer)
+const loadStoredSettings = (): Settings => {
+  if (typeof window === "undefined") return { ...defaultSettings };
 
-  if (typeof window !== "undefined") {
-    const saved = localStorage.getItem("slideshowSettings");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Merge saved settings with defaults, ensuring all properties exist
-        settings = {
-          ...settings,
-          ...Object.fromEntries(
-            Object.entries(parsed).filter(([key]) => key in defaultSettings),
-          ),
-        };
-      } catch {
-        // If parsing fails, keep defaults
-      }
-    }
+  const saved = localStorage.getItem("slideshowSettings");
+  if (!saved) return { ...defaultSettings };
 
-    // Query params take precedence over stored/default settings
-    settings = { ...settings, ...parseQuerySettings(window.location.search) };
+  try {
+    const parsed = JSON.parse(saved);
+    // Merge saved settings with defaults, ensuring all properties exist
+    return {
+      ...defaultSettings,
+      ...Object.fromEntries(
+        Object.entries(parsed).filter(([key]) => key in defaultSettings),
+      ),
+    };
+  } catch {
+    return { ...defaultSettings };
   }
-
-  return settings;
 };
 
 const saveSettings = (settings: Settings) => {
@@ -117,22 +118,41 @@ const saveSettings = (settings: Settings) => {
 };
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<Settings>(loadSettings);
+  // Start from defaults so server and first client render match, then hydrate
+  // from localStorage / query params in an effect to avoid hydration mismatch.
+  const [stored, setStored] = useState<Settings>(defaultSettings);
+  const [overrides, setOverrides] = useState<Partial<Settings>>({});
 
-  // Generic handler to update any setting
+  useEffect(() => {
+    setStored(loadStoredSettings());
+    setOverrides(parseQuerySettings(window.location.search));
+  }, []);
+
+  // Generic handler to update any setting. A manual change also clears any
+  // query-param override for that key so the modal stays authoritative, and
+  // only the persisted layer is written to localStorage.
   const updateSetting = <K extends keyof Settings>(
     key: K,
     value: Settings[K],
   ) => {
-    const newSettings = { ...settings, [key]: value };
-    setSettings(newSettings);
-    saveSettings(newSettings);
+    setOverrides((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setStored((prev) => {
+      const next = { ...prev, [key]: value };
+      saveSettings(next);
+      return next;
+    });
   };
 
   return (
     <SettingsContext.Provider
       value={{
-        ...settings,
+        ...stored,
+        ...overrides,
         updateSetting,
       }}
     >

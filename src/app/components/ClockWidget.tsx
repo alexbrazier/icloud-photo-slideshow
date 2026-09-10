@@ -1,4 +1,3 @@
-import Head from "next/head";
 import React, { useState, useEffect, useRef } from "react";
 
 export function ClockWidget() {
@@ -39,35 +38,27 @@ export function ClockWidget() {
   }, []);
 
   return (
-    <>
-      <Head>
-        <link
-          href={`https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap`}
-          rel="stylesheet"
-        />
-      </Head>
-      <div
-        style={{
-          position: "fixed",
-          top: "20px",
-          right: "20px",
-          background: "rgba(0, 0, 0, 0.3)",
-          borderRadius: "12px",
-          padding: "12px 16px",
-          zIndex: 50,
-          backdropFilter: "blur(10px)",
-          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-          fontFamily: "Inter, sans-serif",
-          fontSize: 60,
-          fontWeight: 500,
-          color: "white",
-          textShadow: "0 1px 3px rgba(0, 0, 0, 0.5)",
-          minWidth: "100px",
-          textAlign: "center",
-        }}
-      >
-        {time}
-      </div>
-    </>
+    <div
+      style={{
+        position: "fixed",
+        top: "20px",
+        right: "20px",
+        background: "rgba(0, 0, 0, 0.3)",
+        borderRadius: "12px",
+        padding: "12px 16px",
+        zIndex: 50,
+        backdropFilter: "blur(10px)",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+        fontFamily: "var(--font-inter), sans-serif",
+        fontSize: 60,
+        fontWeight: 500,
+        color: "white",
+        textShadow: "0 1px 3px rgba(0, 0, 0, 0.5)",
+        minWidth: "100px",
+        textAlign: "center",
+      }}
+    >
+      {time}
+    </div>
   );
 }

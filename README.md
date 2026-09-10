@@ -19,7 +19,7 @@ This is an app that displays a fullscreen slideshow of images from an iCloud Sha
    ```bash
    npm run dev
    ```
-3. Open [http://localhost:3000](http://localhost:3000) in your browser.
+3. Open [http://localhost:8085](http://localhost:8085) in your browser.
 
 ## Configuration via query params
 
@@ -31,7 +31,7 @@ or sharing a preconfigured link.
 | --- | --- | --- |
 | `transition` | seconds (> 0) | `?transition=30` |
 | `orientation` | `all`, `landscape`, `portrait` | `?orientation=landscape` |
-| `timer` | `true`/`false` (`1`/`0`, `on`/`off`, `yes`/`no`) | `?timer=true` |
+| `timer` | `true`/`false` (`1`/`0`, `on`/`off`, `yes`/`no`, or bare) | `?timer` |
 | `weather` | `true`/`false` | `?weather=1` |
 | `clock` | `true`/`false` | `?clock=on` |
 | `album` | iCloud shared album ID | `?album=B0abc123` |
@@ -41,5 +41,5 @@ or sharing a preconfigured link.
 Example combining several:
 
 ```
-http://localhost:3000/?album=B0abc123&transition=20&clock=true&orientation=landscape
+http://localhost:8085/?album=B0abc123&transition=20&clock=true&orientation=landscape
 ```
