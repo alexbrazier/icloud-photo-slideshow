@@ -20,3 +20,26 @@ This is an app that displays a fullscreen slideshow of images from an iCloud Sha
    npm run dev
    ```
 3. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Configuration via query params
+
+Every setting can be set through the URL query string. Query params take
+precedence over previously saved settings, so they're handy for kiosk setups
+or sharing a preconfigured link.
+
+| Param | Values | Example |
+| --- | --- | --- |
+| `transition` | seconds (> 0) | `?transition=30` |
+| `orientation` | `all`, `landscape`, `portrait` | `?orientation=landscape` |
+| `timer` | `true`/`false` (`1`/`0`, `on`/`off`, `yes`/`no`) | `?timer=true` |
+| `weather` | `true`/`false` | `?weather=1` |
+| `clock` | `true`/`false` | `?clock=on` |
+| `album` | iCloud shared album ID | `?album=B0abc123` |
+| `lat` | decimal degrees | `?lat=37.7749` |
+| `lng` | decimal degrees | `?lng=-122.4194` |
+
+Example combining several:
+
+```
+http://localhost:3000/?album=B0abc123&transition=20&clock=true&orientation=landscape
+```
