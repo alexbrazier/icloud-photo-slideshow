@@ -1,11 +1,4 @@
-"use client";
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode,
-} from "react";
+import React, { createContext, useContext, useState, ReactNode } from "react";
 
 const DEFAULT_TRANSITION_SECS = 60;
 
@@ -21,8 +14,6 @@ interface Settings {
 }
 
 interface SettingsContextType extends Settings {
-  // False until localStorage / query params have been applied
-  loaded: boolean;
   updateSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
 }
 
@@ -94,8 +85,6 @@ const parseQuerySettings = (search: string): Partial<Settings> => {
 
 // Settings persisted in localStorage (query params are a separate override layer)
 const loadStoredSettings = (): Settings => {
-  if (typeof window === "undefined") return { ...defaultSettings };
-
   const saved = localStorage.getItem("slideshowSettings");
   if (!saved) return { ...defaultSettings };
 
@@ -114,24 +103,14 @@ const loadStoredSettings = (): Settings => {
 };
 
 const saveSettings = (settings: Settings) => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("slideshowSettings", JSON.stringify(settings));
-  }
+  localStorage.setItem("slideshowSettings", JSON.stringify(settings));
 };
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  // Start from defaults so server and first client render match, then hydrate
-  // from localStorage / query params in an effect to avoid hydration mismatch.
-  const [stored, setStored] = useState<Settings>(defaultSettings);
-  const [overrides, setOverrides] = useState<Partial<Settings>>({});
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only hydration
-    setStored(loadStoredSettings());
-    setOverrides(parseQuerySettings(window.location.search));
-    setLoaded(true);
-  }, []);
+  const [stored, setStored] = useState<Settings>(loadStoredSettings);
+  const [overrides, setOverrides] = useState<Partial<Settings>>(() =>
+    parseQuerySettings(window.location.search),
+  );
 
   // Generic handler to update any setting. A manual change also clears any
   // query-param override for that key so the modal stays authoritative, and
@@ -158,7 +137,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       value={{
         ...stored,
         ...overrides,
-        loaded,
         updateSetting,
       }}
     >

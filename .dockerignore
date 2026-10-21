@@ -1,7 +1,10 @@
 .git
-.next
+.github
 node_modules
+dist
+.scriptc
 .env*
 npm-debug.log*
 *.tsbuildinfo
 .DS_Store
+docker-compose.yml

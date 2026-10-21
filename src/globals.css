@@ -1,6 +1,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --font-inter: "Inter Variable";
 }
 
 @media (prefers-color-scheme: dark) {

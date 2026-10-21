@@ -1,4 +1,3 @@
-"use client";
 import React, { useState } from "react";
 import { useCogVisibility } from "./hooks/useCogVisibility";
 import { useWakeLock } from "./hooks/useWakeLock";
@@ -9,7 +8,7 @@ import { WeatherWidget } from "./components/WeatherWidget";
 import { ClockWidget } from "./components/ClockWidget";
 import { useSettings } from "./contexts/SettingsContext";
 
-export default function Home() {
+export default function App() {
   const { albumId, showWeather, showClock } = useSettings();
   const controlsVisible = useCogVisibility();
   useWakeLock();

@@ -4,7 +4,7 @@ export function useCogVisibility() {
   const [cogVisible, setCogVisible] = useState(false);
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
+    let timeout: ReturnType<typeof setTimeout>;
     const showCog = () => {
       setCogVisible(true);
       clearTimeout(timeout);

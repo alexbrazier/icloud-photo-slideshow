@@ -19,7 +19,7 @@ const shuffleArray = (array: Images) => {
 };
 
 export function useSlideshow(
-  albumId: string | null,
+  albumId: string,
   transitionTime: number,
   orientationFilter: "all" | Orientation
 ): {
@@ -31,7 +31,7 @@ export function useSlideshow(
   const [images, setImages] = useState<Images>([]);
   const [shuffledImages, setShuffledImages] = useState<Images>([]);
   const [current, setCurrent] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Shared function to start/restart the slideshow timer
   const startSlideshowTimer = useCallback(() => {
@@ -88,9 +88,8 @@ export function useSlideshow(
   };
 
   useEffect(() => {
-    if (albumId === null) return;
     let cancelled = false;
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
     let retryDelay = MIN_RETRY_MS;
     // Refresh periodically, retrying failures with exponential backoff so a
     // failed first load doesn't leave the screen blank until the next refresh

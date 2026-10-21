@@ -26,7 +26,7 @@ export function useCrossfade(
       return;
 
     let cancelled = false;
-    let timeout: NodeJS.Timeout | undefined;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     const img = new Image();
     img.src = currentImage.url;
     img.decode().then(

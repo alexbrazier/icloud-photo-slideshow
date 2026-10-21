@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 
 export function ClockWidget() {
   const [time, setTime] = useState<string>("");
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const updateTime = () => {
