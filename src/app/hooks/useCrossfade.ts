@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
 export interface ImageData {
   url: string;
@@ -14,12 +14,11 @@ export function useCrossfade(
   nextImage?: ImageData,
   onImageError?: () => void
 ) {
-  const [isTransitioning, setIsTransitioning] = useState(false);
   const [displayedCurrentImage, setDisplayedCurrentImage] =
     useState<ImageData>();
-  const [displayedNextImage, setDisplayedNextImage] = useState(nextImage);
-  const onImageErrorRef = useRef(onImageError);
-  onImageErrorRef.current = onImageError;
+  // Image currently fading in over displayedCurrentImage, if any
+  const [incomingImage, setIncomingImage] = useState<ImageData>();
+  const handleImageError = useEffectEvent(() => onImageError?.());
 
   // Handle image changes with crossfade transition, once the image has loaded
   useEffect(() => {
@@ -33,22 +32,18 @@ export function useCrossfade(
     img.decode().then(
       () => {
         if (cancelled) return;
-        setIsTransitioning(true);
-        setDisplayedNextImage(currentImage);
+        setIncomingImage(currentImage);
 
         // After 1 second, complete the transition
         timeout = setTimeout(() => {
           setDisplayedCurrentImage(currentImage);
-          setIsTransitioning(false);
+          setIncomingImage(undefined);
         }, 1000);
       },
       () => {
         if (cancelled) return;
         console.error("Failed to load image, skipping:", currentImage.url);
-        timeout = setTimeout(
-          () => onImageErrorRef.current?.(),
-          ERROR_SKIP_DELAY_MS
-        );
+        timeout = setTimeout(handleImageError, ERROR_SKIP_DELAY_MS);
       }
     );
 
@@ -58,14 +53,10 @@ export function useCrossfade(
     };
   }, [currentImage, displayedCurrentImage?.url]);
 
-  // Update next image for preloading when not transitioning
-  useEffect(() => {
-    if (!isTransitioning && nextImage) setDisplayedNextImage(nextImage);
-  }, [nextImage, isTransitioning]);
-
   return {
-    isTransitioning,
+    isTransitioning: incomingImage !== undefined,
     displayedCurrentImage,
-    displayedNextImage,
+    // Otherwise render the upcoming image hidden, so it preloads
+    displayedNextImage: incomingImage ?? nextImage,
   };
 }

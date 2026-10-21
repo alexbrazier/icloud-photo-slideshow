@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useSettings } from "../contexts/SettingsContext";
 
 interface SettingsModalProps {
@@ -7,6 +7,12 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
+  if (!open) return null;
+  // Mounted only while open, so local fields start from the current settings
+  return <SettingsModalContent onClose={onClose} />;
+}
+
+function SettingsModalContent({ onClose }: Pick<SettingsModalProps, "onClose">) {
   const {
     transitionTime,
     orientationFilter,
@@ -22,12 +28,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [localLatitude, setLocalLatitude] = useState(weatherLatitude);
   const [localLongitude, setLocalLongitude] = useState(weatherLongitude);
 
-  useEffect(() => {
-    setLocalLatitude(weatherLatitude);
-    setLocalLongitude(weatherLongitude);
-  }, [weatherLatitude, weatherLongitude]);
-
-  if (!open) return null;
   return (
     <div
       style={{

@@ -8,6 +8,16 @@ export type Orientation = "landscape" | "portrait";
 
 type Images = { url: string; orientation: Orientation }[];
 
+// Shuffle array using Fisher-Yates algorithm
+const shuffleArray = (array: Images) => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
 export function useSlideshow(
   albumId: string | null,
   transitionTime: number,
@@ -77,18 +87,6 @@ export function useSlideshow(
     }
   };
 
-  // Shuffle array using Fisher-Yates algorithm
-  const shuffleArray = (
-    array: Array<{ url: string; orientation: "landscape" | "portrait" }>
-  ) => {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  };
-
   useEffect(() => {
     if (albumId === null) return;
     let cancelled = false;
@@ -114,8 +112,17 @@ export function useSlideshow(
     };
   }, [albumId]);
 
-  // Shuffle images when they change
-  useEffect(() => {
+  // Shuffle images when they change (adjusting state during render, rather
+  // than in an effect, avoids rendering the stale order first)
+  const [shuffledFrom, setShuffledFrom] = useState({
+    images,
+    orientationFilter,
+  });
+  if (
+    shuffledFrom.images !== images ||
+    shuffledFrom.orientationFilter !== orientationFilter
+  ) {
+    setShuffledFrom({ images, orientationFilter });
     if (images.length > 0) {
       const filtered = images.filter((img) => {
         if (orientationFilter === "all") return true;
@@ -124,7 +131,7 @@ export function useSlideshow(
       setShuffledImages(shuffleArray(filtered));
       setCurrent(0); // Reset to first image of new shuffle
     }
-  }, [images, orientationFilter]);
+  }
 
   // Slideshow logic
   useEffect(() => {

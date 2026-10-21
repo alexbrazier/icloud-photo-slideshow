@@ -127,6 +127,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only hydration
     setStored(loadStoredSettings());
     setOverrides(parseQuerySettings(window.location.search));
     setLoaded(true);

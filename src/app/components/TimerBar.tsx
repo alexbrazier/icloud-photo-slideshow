@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React from "react";
 
 interface TimerBarProps {
   transitionTime: number; // in seconds
@@ -6,44 +6,6 @@ interface TimerBarProps {
 }
 
 export function TimerBar({ transitionTime, currentImageUrl }: TimerBarProps) {
-  const [progress, setProgress] = useState(0);
-  const animationFrameRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    // Cancel any existing animation frame first
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-
-    // Reset progress and start timer whenever image changes
-    setProgress(0);
-    const startTime = Date.now();
-    const duration = transitionTime * 1000; // Convert to milliseconds
-
-    const updateProgress = () => {
-      const elapsed = Date.now() - startTime;
-      const newProgress = Math.min((elapsed / duration) * 100, 100);
-      setProgress(newProgress);
-
-      if (newProgress < 100) {
-        animationFrameRef.current = requestAnimationFrame(updateProgress);
-      } else {
-        animationFrameRef.current = null;
-      }
-    };
-
-    // Start immediately, don't wait for first animation frame
-    updateProgress();
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-    };
-  }, [transitionTime, currentImageUrl]);
-
   return (
     <div
       style={{
@@ -56,11 +18,15 @@ export function TimerBar({ transitionTime, currentImageUrl }: TimerBarProps) {
         zIndex: 5,
       }}
     >
+      {/* Keyed on image and duration so the CSS animation restarts on change */}
       <div
+        key={`${currentImageUrl}-${transitionTime}`}
         style={{
           height: "100%",
-          width: `${progress}%`,
+          width: "100%",
+          transformOrigin: "left",
           backgroundColor: "rgba(255, 255, 255, 0.8)",
+          animation: `timer-bar-progress ${transitionTime}s linear forwards`,
         }}
       />
     </div>

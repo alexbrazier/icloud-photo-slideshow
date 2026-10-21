@@ -1,0 +1,8 @@
+version: "3.8"
+services:
+  app:
+    image: ghcr.io/alexbrazier/icloud-photo-slideshow
+    ports:
+      - "8085:3000"
+    environment:
+      - NODE_ENV=production

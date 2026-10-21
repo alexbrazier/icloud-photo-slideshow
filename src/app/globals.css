@@ -40,3 +40,12 @@ a {
     color-scheme: dark;
   }
 }
+
+@keyframes timer-bar-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
