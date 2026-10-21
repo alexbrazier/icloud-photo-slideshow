@@ -48,6 +48,7 @@ export function Slideshow({ albumId, controlsVisible }: SlideshowProps) {
         currentImage={currentImage}
         nextImage={nextImage}
         screenOrientation={screenOrientation}
+        onImageError={goNext}
       />
       {/* Timer bar */}
       {showTimerBar && (

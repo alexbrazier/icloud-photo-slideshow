@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { useCogVisibility } from "./hooks/useCogVisibility";
+import { useWakeLock } from "./hooks/useWakeLock";
 import { Slideshow } from "./components/Slideshow";
 import { SettingsCog } from "./components/SettingsCog";
 import { SettingsModal } from "./components/SettingsModal";
@@ -11,6 +12,7 @@ import { useSettings } from "./contexts/SettingsContext";
 export default function Home() {
   const { albumId, showWeather, showClock } = useSettings();
   const controlsVisible = useCogVisibility();
+  useWakeLock();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (

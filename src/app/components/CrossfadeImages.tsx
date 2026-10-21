@@ -7,6 +7,7 @@ interface CrossfadeImagesProps {
   currentImage?: ImageData;
   nextImage?: ImageData;
   screenOrientation: Orientation;
+  onImageError?: () => void;
 }
 
 interface SlideImageProps {
@@ -59,26 +60,25 @@ export function CrossfadeImages({
   currentImage,
   nextImage,
   screenOrientation,
+  onImageError,
 }: CrossfadeImagesProps) {
   const { isTransitioning, displayedCurrentImage, displayedNextImage } =
-    useCrossfade(currentImage, nextImage);
-
-  if (!displayedCurrentImage) {
-    return null;
-  }
+    useCrossfade(currentImage, nextImage, onImageError);
 
   return (
     <>
-      {/* Current image */}
-      <SlideImage
-        src={displayedCurrentImage.url}
-        alt="Current slide"
-        screenOrientation={screenOrientation}
-        imageOrientation={displayedCurrentImage.orientation}
-        opacity={isTransitioning ? 0 : 1}
-        zIndex={isTransitioning ? 1 : 2}
-        key={displayedCurrentImage.url}
-      />
+      {/* Current image - absent until the first image has loaded */}
+      {displayedCurrentImage && (
+        <SlideImage
+          src={displayedCurrentImage.url}
+          alt="Current slide"
+          screenOrientation={screenOrientation}
+          imageOrientation={displayedCurrentImage.orientation}
+          opacity={isTransitioning ? 0 : 1}
+          zIndex={isTransitioning ? 1 : 2}
+          key={displayedCurrentImage.url}
+        />
+      )}
 
       {/* Next image - always rendered for preloading */}
       {displayedNextImage && (

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const DEFAULT_REFRESH_MINS = 60;
+const MIN_RETRY_MS = 30 * 1000;
+const MAX_RETRY_MS = 10 * 60 * 1000;
 
 export type Orientation = "landscape" | "portrait";
 
@@ -48,25 +50,30 @@ export function useSlideshow(
     [current, shuffledImages.length, startSlideshowTimer]
   );
 
-  // Fetch images and periodically refresh
-  const fetchPhotos = async (albumId: string, isCancelled: () => boolean) => {
+  // Fetch images, returning whether it succeeded
+  const fetchPhotos = async (
+    albumId: string,
+    isCancelled: () => boolean
+  ): Promise<boolean> => {
     try {
       const res = await fetch(
         `/api/images?albumId=${encodeURIComponent(albumId)}`
       );
       const data = await res.json();
       // Ignore responses for an album we've since switched away from
-      if (isCancelled()) return;
+      if (isCancelled()) return true;
       if (!res.ok || !Array.isArray(data)) {
         console.error("Error fetching photos:", data?.error || res.statusText);
-        return;
+        return false;
       }
       // URLs are stable, so skip the reshuffle if the album hasn't changed
       setImages((prev) =>
         JSON.stringify(prev) === JSON.stringify(data) ? prev : data
       );
+      return true;
     } catch (err) {
       console.error("Error fetching photos:", err);
+      return false;
     }
   };
 
@@ -85,15 +92,25 @@ export function useSlideshow(
   useEffect(() => {
     if (albumId === null) return;
     let cancelled = false;
-    const isCancelled = () => cancelled;
-    fetchPhotos(albumId, isCancelled);
-    const refresh = setInterval(
-      () => fetchPhotos(albumId, isCancelled),
-      DEFAULT_REFRESH_MINS * 60 * 1000
-    );
+    let timer: NodeJS.Timeout;
+    let retryDelay = MIN_RETRY_MS;
+    // Refresh periodically, retrying failures with exponential backoff so a
+    // failed first load doesn't leave the screen blank until the next refresh
+    const load = async () => {
+      const ok = await fetchPhotos(albumId, () => cancelled);
+      if (cancelled) return;
+      if (ok) {
+        retryDelay = MIN_RETRY_MS;
+        timer = setTimeout(load, DEFAULT_REFRESH_MINS * 60 * 1000);
+      } else {
+        timer = setTimeout(load, retryDelay);
+        retryDelay = Math.min(retryDelay * 2, MAX_RETRY_MS);
+      }
+    };
+    load();
     return () => {
       cancelled = true;
-      clearInterval(refresh);
+      clearTimeout(timer);
     };
   }, [albumId]);
 

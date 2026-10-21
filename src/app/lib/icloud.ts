@@ -12,14 +12,22 @@ const PHOTO_LIST_TTL = 60 * 60 * 1000; // 1 hour
 // Apple currently signs asset URLs for ~20 minutes; refresh before they lapse
 const URL_EXPIRY_MARGIN = 2 * 60 * 1000;
 
-const photoLists: Record<
-  string,
-  { photos: Photo[]; timestamp: number; pending?: Promise<Photo[]> }
-> = {};
-const signedUrls: Record<
-  string,
-  { urls: Record<string, SignedUrl>; pending?: Promise<void> }
-> = {};
+// Stored on globalThis so instrumentation (cache warm-up) and route handlers,
+// which Next.js may bundle separately, share the same cache
+const caches = ((globalThis as any).__icloudCaches ??= {
+  photoLists: {},
+  signedUrls: {},
+}) as {
+  photoLists: Record<
+    string,
+    { photos: Photo[]; timestamp: number; pending?: Promise<Photo[]> }
+  >;
+  signedUrls: Record<
+    string,
+    { urls: Record<string, SignedUrl>; pending?: Promise<void> }
+  >;
+};
+const { photoLists, signedUrls } = caches;
 
 export function resolveAlbumId(albumId: string | null): string | null {
   return albumId || process.env.ICLOUD_ALBUM_ID || null;
