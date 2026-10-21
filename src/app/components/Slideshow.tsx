@@ -12,9 +12,11 @@ interface SlideshowProps {
 }
 
 export function Slideshow({ albumId, controlsVisible }: SlideshowProps) {
-  const { transitionTime, orientationFilter, showTimerBar } = useSettings();
+  const { transitionTime, orientationFilter, showTimerBar, loaded } =
+    useSettings();
   const { currentImage, nextImage, goNext, goPrev } = useSlideshow(
-    albumId,
+    // Wait for stored settings so we don't fetch the default album first
+    loaded ? albumId : null,
     transitionTime,
     orientationFilter
   );

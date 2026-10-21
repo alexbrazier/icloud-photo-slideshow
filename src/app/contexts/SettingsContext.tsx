@@ -21,6 +21,8 @@ interface Settings {
 }
 
 interface SettingsContextType extends Settings {
+  // False until localStorage / query params have been applied
+  loaded: boolean;
   updateSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
 }
 
@@ -122,10 +124,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   // from localStorage / query params in an effect to avoid hydration mismatch.
   const [stored, setStored] = useState<Settings>(defaultSettings);
   const [overrides, setOverrides] = useState<Partial<Settings>>({});
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     setStored(loadStoredSettings());
     setOverrides(parseQuerySettings(window.location.search));
+    setLoaded(true);
   }, []);
 
   // Generic handler to update any setting. A manual change also clears any
@@ -153,6 +157,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       value={{
         ...stored,
         ...overrides,
+        loaded,
         updateSetting,
       }}
     >

@@ -7,7 +7,7 @@ export type Orientation = "landscape" | "portrait";
 type Images = { url: string; orientation: Orientation }[];
 
 export function useSlideshow(
-  albumId: string,
+  albumId: string | null,
   transitionTime: number,
   orientationFilter: "all" | Orientation
 ): {
@@ -49,17 +49,22 @@ export function useSlideshow(
   );
 
   // Fetch images and periodically refresh
-  const fetchPhotos = async (albumId?: string) => {
+  const fetchPhotos = async (albumId: string, isCancelled: () => boolean) => {
     try {
       const res = await fetch(
-        `/api/images?albumId=${encodeURIComponent(albumId || "")}`
+        `/api/images?albumId=${encodeURIComponent(albumId)}`
       );
       const data = await res.json();
+      // Ignore responses for an album we've since switched away from
+      if (isCancelled()) return;
       if (!res.ok || !Array.isArray(data)) {
         console.error("Error fetching photos:", data?.error || res.statusText);
         return;
       }
-      setImages(data);
+      // URLs are stable, so skip the reshuffle if the album hasn't changed
+      setImages((prev) =>
+        JSON.stringify(prev) === JSON.stringify(data) ? prev : data
+      );
     } catch (err) {
       console.error("Error fetching photos:", err);
     }
@@ -78,12 +83,18 @@ export function useSlideshow(
   };
 
   useEffect(() => {
-    fetchPhotos(albumId);
+    if (albumId === null) return;
+    let cancelled = false;
+    const isCancelled = () => cancelled;
+    fetchPhotos(albumId, isCancelled);
     const refresh = setInterval(
-      () => fetchPhotos(albumId),
+      () => fetchPhotos(albumId, isCancelled),
       DEFAULT_REFRESH_MINS * 60 * 1000
     );
-    return () => clearInterval(refresh);
+    return () => {
+      cancelled = true;
+      clearInterval(refresh);
+    };
   }, [albumId]);
 
   // Shuffle images when they change
