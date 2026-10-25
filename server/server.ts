@@ -1,7 +1,12 @@
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
-import { getPhotos, getSignedUrl } from "./icloud.ts";
+import {
+  getPhotos,
+  getSignedUrl,
+  parseAlbumId,
+  pickDerivative,
+} from "./icloud.ts";
 import { getWeather } from "./weather.ts";
 
 const PORT = Number(process.env.PORT || 3000);
@@ -19,8 +24,15 @@ const MIME_TYPES: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 
-function resolveAlbumId(albumId: string | null): string {
-  return albumId || process.env.ICLOUD_ALBUM_ID || "";
+// Returns null when the album ID is missing or malformed
+function resolveAlbumId(albumId: string): string | null {
+  return parseAlbumId(albumId || process.env.ICLOUD_ALBUM_ID || "");
+}
+
+// Screen size in device pixels, or 0 when not given (full size photos)
+function parseDimension(raw: string | null): number {
+  const n = Math.round(Number(raw));
+  return Number.isFinite(n) && n > 0 ? Math.min(n, 16384) : 0;
 }
 
 function sendJson(res: ServerResponse, status: number, data: unknown) {
@@ -28,21 +40,34 @@ function sendJson(res: ServerResponse, status: number, data: unknown) {
   res.end(JSON.stringify(data));
 }
 
-async function handleImageList(res: ServerResponse, queryAlbumId: string) {
+async function handleImageList(
+  res: ServerResponse,
+  queryAlbumId: string,
+  width: number,
+  height: number
+) {
   const albumId = resolveAlbumId(queryAlbumId);
   if (!albumId) {
-    return sendJson(res, 400, { error: "albumId is required (query or env)" });
+    return sendJson(res, 400, {
+      error: "A valid albumId is required (query or env)",
+    });
   }
 
-  // Return stable proxy URLs; Apple's signed URLs expire after ~20 minutes,
-  // so they are resolved server side on each image request instead
+  // Return stable proxy URLs, each for the smallest size that fills the
+  // screen. Apple's signed URLs expire, so they're resolved server side when
+  // an image is requested instead.
   const photos = await getPhotos(albumId);
-  const query = encodeURIComponent(queryAlbumId);
+  // Blank means the server's default album, so leave it out
+  const query = queryAlbumId
+    ? `?albumId=${encodeURIComponent(queryAlbumId)}`
+    : "";
   sendJson(
     res,
     200,
     photos.map((p) => ({
-      url: `/api/images/${encodeURIComponent(p.checksum)}?albumId=${query}`,
+      url: `/api/images/${encodeURIComponent(
+        pickDerivative(p, width, height).checksum
+      )}${query}`,
       orientation: p.orientation,
     }))
   );
@@ -55,7 +80,9 @@ async function handleImage(
 ) {
   const albumId = resolveAlbumId(queryAlbumId);
   if (!albumId) {
-    return sendJson(res, 400, { error: "albumId is required (query or env)" });
+    return sendJson(res, 400, {
+      error: "A valid albumId is required (query or env)",
+    });
   }
 
   let url = await getSignedUrl(albumId, checksum);
@@ -124,7 +151,12 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse) {
   const parts = url.pathname.split("/");
   try {
     if (url.pathname === "/api/images") {
-      return await handleImageList(res, params.get("albumId") ?? "");
+      return await handleImageList(
+        res,
+        params.get("albumId") ?? "",
+        parseDimension(params.get("w")),
+        parseDimension(params.get("h"))
+      );
     }
     if (parts.length === 4 && parts[1] === "api" && parts[2] === "images") {
       return await handleImage(
@@ -151,7 +183,7 @@ createServer((req, res) => {
 }).listen(PORT, () => console.log(`Listening on port ${PORT}`));
 
 // Warm the photo list cache on start, as Apple's webstream is slow
-const defaultAlbumId = process.env.ICLOUD_ALBUM_ID;
+const defaultAlbumId = resolveAlbumId("");
 if (defaultAlbumId) {
   getPhotos(defaultAlbumId)
     .then((photos) => console.log(`Cached ${photos.length} photos`))

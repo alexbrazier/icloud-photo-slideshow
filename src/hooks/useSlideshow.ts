@@ -66,9 +66,16 @@ export function useSlideshow(
     isCancelled: () => boolean
   ): Promise<boolean> => {
     try {
-      const res = await fetch(
-        `/api/images?albumId=${encodeURIComponent(albumId)}`
-      );
+      // Screen size in device pixels, so the server can pick photos that
+      // fill it without downloading full size originals
+      const scale = window.devicePixelRatio || 1;
+      const params = new URLSearchParams({
+        w: String(Math.round(window.screen.width * scale)),
+        h: String(Math.round(window.screen.height * scale)),
+      });
+      // Blank means the server's default album
+      if (albumId) params.set("albumId", albumId);
+      const res = await fetch(`/api/images?${params}`);
       const data = await res.json();
       // Ignore responses for an album we've since switched away from
       if (isCancelled()) return true;
