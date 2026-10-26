@@ -46,8 +46,17 @@ final class Sync implements Runnable {
     private long retryMs = MIN_RETRY_MS;
     // Downloads back off separately, since album checks succeeding would otherwise reset it
     private long downloadRetryMs = MIN_RETRY_MS;
-    // Apple's "bandwidth exceeded" and other slow-down replies
+    // Apple's "bandwidth exceeded" and other slow-down replies: 5 minutes, doubling up to an hour
     private static final long RATE_LIMIT_RETRY_MS = 5 * 60 * 1000L;
+    private static final long MAX_RATE_LIMIT_RETRY_MS = 60 * 60 * 1000L;
+    private long rateLimitMs = RATE_LIMIT_RETRY_MS;
+    // Photos are only downloaded shortly before the slideshow needs them (see want), rather than
+    // saving whole albums at once, which gets "slow down" replies from Apple. Each is two
+    // requests (its address, then the file), so flicking through quickly is spaced out too.
+    private static final long DOWNLOAD_GAP_MS = 2000L;
+    private volatile List<String> wanted = new ArrayList<>();
+    // Goes up when an album's list of photos changes, so the slideshow knows to replan
+    private volatile int listVersion;
     private volatile String status = "Starting";
     private volatile String lastError = "";
 
@@ -74,6 +83,15 @@ final class Sync implements Runnable {
             lock.notifyAll();
         }
     }
+
+    /** The photos the slideshow shows next (in order) that aren't saved yet: these are downloaded. */
+    void want(List<String> guids) {
+        if (guids.equals(wanted)) return;
+        wanted = new ArrayList<>(guids);
+        wake(false);
+    }
+
+    int listVersion() { return listVersion; }
 
     String status() {
         String s = status;
@@ -140,7 +158,7 @@ final class Sync implements Runnable {
         if (force) {
             failures.clear();
             retryAt.clear();
-            pausedUntil.clear();
+            // pausedUntil stays: asking again sooner than iCloud said only makes it last longer
         }
         long now = System.currentTimeMillis(), nextCheck = LIST_REFRESH_MS;
         boolean anyFailed = false;
@@ -168,14 +186,21 @@ final class Sync implements Runnable {
         retryMs = anyFailed ? Math.min(retryMs * 2, MAX_RETRY_MS) : MIN_RETRY_MS;
 
         boolean videos = prefs.includeVideos();
-        List<String> downloadable = new ArrayList<>();
+        PhotoStore.Download next = null;
         long pausedFor = Long.MAX_VALUE;
-        for (String album : enabled) {
-            Long until = pausedUntil.get(album);
-            if (until != null && until > now) pausedFor = Math.min(pausedFor, until - now);
-            else downloadable.add(album);
+        Set<String> skip = skipped();
+        for (String guid : wanted) {
+            if (skip.contains(guid)) continue;
+            PhotoStore.Download d = store.download(guid, videos);
+            if (d == null || !enabled.contains(d.album)) continue;
+            Long until = pausedUntil.get(d.album);
+            if (until != null && until > now) {
+                pausedFor = Math.min(pausedFor, until - now);
+                continue;
+            }
+            next = d;
+            break;
         }
-        PhotoStore.Download next = store.nextMissing(downloadable, skipped(), videos);
         if (next == null && pausedFor != Long.MAX_VALUE) {
             store.flush();
             status = "iCloud asked to slow down, retrying in a few minutes";
@@ -186,7 +211,7 @@ final class Sync implements Runnable {
         if (store.evict(enabled, next == null ? null : next.entry, limit)) notifyChanged();
         if (next == null) {
             store.flush();
-            status = "Up to date";
+            status = "Up to date (photos download just before they're shown)";
             return Math.min(LIST_REFRESH_MS, Math.max(60_000, nextCheck));
         }
         if (store.savedBytes() > limit || store.usableSpace() < MIN_FREE_SPACE) {
@@ -208,13 +233,14 @@ final class Sync implements Runnable {
                 ICloud.Derivative image = ICloud.pick(p, FrameApp.screenLong(), FrameApp.screenShort());
                 ICloud.Derivative video = p.isVideo() ? ICloud.pickVideo(p, FrameApp.screenShort()) : null;
                 entries.add(new PhotoStore.Entry(p.guid, image.checksum, video == null ? null : video.checksum,
-                        p.dateCreated));
+                        p.dateCreated, image.width >= image.height));
             }
             // An empty reply keeps what's saved rather than wiping the frame
             boolean changed = false;
             if (!entries.isEmpty() || store.count(album) == 0) {
                 changed = store.setEntries(album, entries, icloud.host(), result.name);
             }
+            if (changed) listVersion++;
             lastError = "";
             Log.i("Album \"" + result.name + "\" has " + entries.size() + " items");
             if (changed) notifyChanged();
@@ -247,8 +273,9 @@ final class Sync implements Runnable {
             }
             lastError = "";
             downloadRetryMs = MIN_RETRY_MS;
+            rateLimitMs = RATE_LIMIT_RETRY_MS;
             notifyChanged();
-            return 500;
+            return DOWNLOAD_GAP_MS;
         } catch (IOException | RuntimeException | OutOfMemoryError ex) {
             Integer n = failures.get(e.guid);
             failures.put(e.guid, n == null ? 1 : n + 1);
@@ -259,7 +286,9 @@ final class Sync implements Runnable {
             boolean slowDown = why.contains("HTTP 509") || why.contains("HTTP 429") || why.contains("HTTP 503");
             if (slowDown) {
                 // Pause just this album; the next step carries on with any others
-                pausedUntil.put(next.album, System.currentTimeMillis() + RATE_LIMIT_RETRY_MS);
+                pausedUntil.put(next.album, System.currentTimeMillis() + rateLimitMs);
+                Log.i("iCloud asked to slow down; pausing for " + rateLimitMs / 60000 + " minutes");
+                rateLimitMs = Math.min(rateLimitMs * 2, MAX_RATE_LIMIT_RETRY_MS);
                 return 1000;
             }
             status = "Retrying soon";

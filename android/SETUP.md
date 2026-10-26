@@ -259,6 +259,27 @@ Developer options after each restart works, but the frame is open until you do; 
 guest or IoT network that can't reach your other devices (and they can't reach it), and prefer a
 frame where `ro.adb.secure` is `1`, so a new computer has to be approved on the frame's screen.
 
+**6. Let the app keep it on or off after restarts:** Settings → Device → **Wi-Fi adb**:
+
+- **Leave as Android has it** (the default): the app doesn't touch it.
+- **On, after every restart**: wireless ADB on port 5555 comes back on its own, so you only ever
+  need the cable once.
+- **Off, after every restart**: turns wireless ADB off again whenever something (the maker's
+  firmware, an `adb tcpip`) has turned it on. USB ADB stays as it is.
+
+Apps can't normally change this, so it works on:
+
+- **Rooted frames** (many Frameo-style frames are: `adb shell su 0 id` shows `uid=0`), any
+  Android version. The app restarts ADB to apply it, which drops any ADB connection open at the
+  time.
+- **Android 11 and later**, after granting a permission once over USB. It then uses Android's
+  own Wireless debugging, which picks its own port and needs pairing from Developer options:
+  ```bash
+  adb shell pm grant com.alexbrazier.icloudframe android.permission.WRITE_SECURE_SETTINGS
+  ```
+
+On other frames the setting says it isn't possible. Settings → Permissions shows which applies.
+
 **Getting back in later:** Developer options → **USB debugging** on, then whichever applies:
 
 - **The frame forces 5555 at boot:** turning USB debugging back on brings wireless ADB back too,

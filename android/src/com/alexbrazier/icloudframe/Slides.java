@@ -6,10 +6,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
-/** The slideshow's order, rebuilt from the saved iCloud photos and the SD card/USB photos. */
+/**
+ * The slideshow's order, planned from every iCloud photo (saved or not) and the SD card/USB
+ * photos. iCloud photos are downloaded just before they're due; one that isn't ready in time is
+ * swapped with the next one that is, so it comes round again shortly after.
+ */
 final class Slides {
     static final class Item {
         final String id;
+        /** The iCloud photo's guid, or null for SD card/USB files, which are always ready. */
+        final String guid;
         /** The photo, or a video's poster; null for a local video, whose first frame is used. */
         final File file;
         /** The video to play, or null for a photo. */
@@ -20,13 +26,27 @@ final class Slides {
         final String album;
 
         Item(String id, File file, File video, boolean landscape, long date, String album) {
+            this(id, null, file, video, landscape, date, album);
+        }
+
+        Item(String id, String guid, File file, File video, boolean landscape, long date, String album) {
             this.id = id;
+            this.guid = guid;
             this.file = file;
             this.video = video;
             this.landscape = landscape;
             this.date = date;
             this.album = album;
         }
+
+        Item withVideo(File video) {
+            return new Item(id, guid, file, video, landscape, date, album);
+        }
+    }
+
+    /** Whether an item can be shown now (for iCloud photos: whether it's downloaded). */
+    interface Ready {
+        boolean test(Item item);
     }
 
     private final Random random = new Random();
@@ -77,25 +97,61 @@ final class Slides {
 
     Item current() { return pos >= 0 && pos < order.size() ? order.get(pos) : null; }
 
-    /** Advances, reshuffling after each full pass like the web app. */
-    Item next(String orderMode) {
+    /**
+     * Advances to the next item that's ready, reshuffling after each full pass like the web app.
+     * One that isn't ready swaps places with the next one that is, so it isn't skipped for a whole
+     * pass. Null (staying put) when nothing is ready yet.
+     */
+    Item next(String orderMode, Ready ready) {
         if (order.isEmpty()) return null;
-        pos++;
-        if (pos >= order.size()) {
-            if ("shuffle".equals(orderMode) && order.size() > 2) {
-                Item last = order.get(order.size() - 1);
-                Collections.shuffle(order, random);
-                // Don't show the same photo twice in a row across passes
-                if (order.get(0) == last) Collections.swap(order, 0, order.size() - 1);
+        int start = pos;
+        for (int tries = 0; tries < order.size(); tries++) {
+            pos++;
+            if (pos >= order.size()) {
+                if ("shuffle".equals(orderMode) && order.size() > 2) {
+                    Item last = order.get(order.size() - 1);
+                    Collections.shuffle(order, random);
+                    // Don't show the same photo twice in a row across passes
+                    if (order.get(0) == last) Collections.swap(order, 0, order.size() - 1);
+                }
+                pos = 0;
             }
-            pos = 0;
+            if (ready.test(order.get(pos))) return order.get(pos);
+            for (int j = pos + 1; j < order.size(); j++) {
+                if (ready.test(order.get(j))) {
+                    Collections.swap(order, pos, j);
+                    return order.get(pos);
+                }
+            }
         }
-        return order.get(pos);
+        pos = start;
+        return null;
     }
 
-    Item previous() {
+    /** Back to the previous item that's ready. */
+    Item previous(Ready ready) {
         if (order.isEmpty()) return null;
-        pos = pos <= 0 ? order.size() - 1 : pos - 1;
-        return order.get(pos);
+        int start = pos;
+        for (int tries = 0; tries < order.size(); tries++) {
+            pos = pos <= 0 ? order.size() - 1 : pos - 1;
+            if (ready.test(order.get(pos))) return order.get(pos);
+        }
+        pos = start;
+        return null;
+    }
+
+    /** The next few items after the current one, to download ahead of time. */
+    List<Item> upcoming(int count) {
+        List<Item> list = new ArrayList<>();
+        for (int i = 1; i <= count && i <= order.size(); i++) {
+            // pos is -1 before the first photo, so this never goes negative
+            list.add(order.get((pos + i) % order.size()));
+        }
+        return list;
+    }
+
+    /** Swaps in a newer copy of the current item, e.g. once its video has downloaded. */
+    void replaceCurrent(Item item) {
+        if (pos >= 0 && pos < order.size() && order.get(pos).id.equals(item.id)) order.set(pos, item);
     }
 }

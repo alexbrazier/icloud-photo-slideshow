@@ -17,6 +17,9 @@
          open itself from the background, which starting after a reboot and waking for the
          morning both need. Fire tablets don't allow other Home apps, so they rely on this. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Only for the optional Wi-Fi adb setting on Android 11+: can't be asked for, only granted
+         over USB with "adb shell pm grant" (see README) -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
 
     <application
         android:name=".FrameApp"

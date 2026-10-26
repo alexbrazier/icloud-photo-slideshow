@@ -29,13 +29,16 @@ final class PhotoStore {
     static final class Entry {
         final String guid, checksum, videoChecksum;
         final long date;
+        /** From iCloud's sizes, so the orientation filter works before it's downloaded. */
+        final boolean landscape;
 
         /** checksum is the photo (or a video's poster); videoChecksum is null for photos. */
-        Entry(String guid, String checksum, String videoChecksum, long date) {
+        Entry(String guid, String checksum, String videoChecksum, long date, boolean landscape) {
             this.guid = guid;
             this.checksum = checksum;
             this.videoChecksum = videoChecksum;
             this.date = date;
+            this.landscape = landscape;
         }
 
         boolean isVideo() { return videoChecksum != null; }
@@ -231,32 +234,38 @@ final class PhotoStore {
         if (a.size() != b.size()) return false;
         for (int i = 0; i < a.size(); i++) {
             Entry x = a.get(i), y = b.get(i);
-            if (!x.guid.equals(y.guid) || !x.checksum.equals(y.checksum)
+            if (!x.guid.equals(y.guid) || !x.checksum.equals(y.checksum) || x.landscape != y.landscape
                     || !String.valueOf(x.videoChecksum).equals(String.valueOf(y.videoChecksum))) return false;
         }
         return true;
     }
 
-    /** The next download: the newest photo (or poster) not saved, then videos, skipping repeat failures. */
-    synchronized Download nextMissing(Collection<String> enabled, Set<String> skip, boolean videos) {
-        Entry best = null, bestVideo = null;
-        for (String id : enabled) {
-            AlbumState a = albums.get(id);
-            if (a == null) continue;
+    /**
+     * What to download for one item the slideshow is about to show: its photo (or a video's
+     * poster) first, then the video. Null when it's all saved, or it's no longer in an album.
+     */
+    synchronized Download download(String guid, boolean videos) {
+        for (AlbumState a : albums.values()) {
             for (Entry e : a.entries) {
-                if (skip.contains(e.guid) || (e.isVideo() && !videos)) continue;
-                Saved s = saved.get(e.guid);
-                if (s == null || !s.checksum.equals(e.checksum)) {
-                    if (best == null || e.date > best.date) best = e;
-                } else if (e.isVideo() && !e.videoChecksum.equals(s.videoChecksum)) {
-                    if (bestVideo == null || e.date > bestVideo.date) bestVideo = e;
-                }
+                if (!e.guid.equals(guid)) continue;
+                Saved s = saved.get(guid);
+                if (s == null || !s.checksum.equals(e.checksum)) return new Download(a.id, e, false);
+                if (videos && e.isVideo() && !e.videoChecksum.equals(s.videoChecksum)) return new Download(a.id, e, true);
+                return null;
             }
         }
-        // Posters and photos first, so every slide has something to show while videos download
-        if (best != null) return new Download(albumOf(best), best, false);
-        if (bestVideo != null) return new Download(albumOf(bestVideo), bestVideo, true);
         return null;
+    }
+
+    /** Whether the photo (or video poster) is saved and ready to show. */
+    synchronized boolean isSaved(String guid) {
+        return saved.containsKey(guid);
+    }
+
+    /** The saved video for an item, or null while only its poster is saved. */
+    synchronized File savedVideo(String guid) {
+        Saved s = saved.get(guid);
+        return s != null && s.videoChecksum != null ? videoFile(guid) : null;
     }
 
     static final class Download {
@@ -358,7 +367,6 @@ final class PhotoStore {
         if (write) save();
     }
 
-    /** Saved photos and videos from the given albums, for the slideshow. */
     /** The newest saved photo (or video poster) in an album, for its cover, or null. */
     synchronized File cover(String album) {
         AlbumState a = albums.get(album);
@@ -370,6 +378,10 @@ final class PhotoStore {
         return best == null ? null : file(best.guid);
     }
 
+    /**
+     * Every photo and video in the given albums, saved or not, for planning the slideshow; the
+     * slideshow asks for each one to be downloaded shortly before it's due (see Sync.want).
+     */
     synchronized List<Slides.Item> items(Collection<String> enabled, boolean videos) {
         List<Slides.Item> items = new ArrayList<>();
         Set<String> seen = new HashSet<>();
@@ -377,15 +389,12 @@ final class PhotoStore {
             AlbumState a = albums.get(id);
             if (a == null) continue;
             for (Entry e : a.entries) {
+                if (!seen.add(e.guid) || (e.isVideo() && !videos)) continue;
                 Saved s = saved.get(e.guid);
-                if (s == null || !seen.add(e.guid)) continue;
-                File video = null;
-                if (e.isVideo()) {
-                    if (!videos) continue;
-                    // Until the video itself is saved, its poster shows as a photo
-                    if (e.videoChecksum.equals(s.videoChecksum)) video = videoFile(e.guid);
-                }
-                items.add(new Slides.Item("ic:" + e.guid, file(e.guid), video, s.landscape, e.date, a.name));
+                // Until the video itself is saved, its poster shows as a photo
+                File video = s != null && e.isVideo() && e.videoChecksum.equals(s.videoChecksum) ? videoFile(e.guid) : null;
+                items.add(new Slides.Item("ic:" + e.guid, e.guid, file(e.guid), video,
+                        s != null ? s.landscape : e.landscape, e.date, a.name));
             }
         }
         return items;
@@ -443,7 +452,7 @@ final class PhotoStore {
         for (int i = 0; list != null && i < list.length(); i++) {
             JSONObject e = list.getJSONObject(i);
             entries.add(new Entry(e.getString("guid"), e.getString("checksum"),
-                    e.has("video") ? e.getString("video") : null, e.optLong("date")));
+                    e.has("video") ? e.getString("video") : null, e.optLong("date"), e.optBoolean("landscape", true)));
         }
         return entries;
     }
@@ -458,7 +467,8 @@ final class PhotoStore {
                 for (AlbumState a : albums.values()) {
                     JSONArray entries = new JSONArray();
                     for (Entry e : a.entries) {
-                        JSONObject o = new JSONObject().put("guid", e.guid).put("checksum", e.checksum).put("date", e.date);
+                        JSONObject o = new JSONObject().put("guid", e.guid).put("checksum", e.checksum).put("date", e.date)
+                                .put("landscape", e.landscape);
                         if (e.videoChecksum != null) o.put("video", e.videoChecksum);
                         entries.put(o);
                     }

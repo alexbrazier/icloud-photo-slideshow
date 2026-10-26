@@ -29,6 +29,8 @@ public final class FrameApp extends Application {
         Updater.schedule(this);
         Device.setUp(this);
         Schedule.update(this);
+        // adb forgets its network port on every restart
+        Adb.apply(this);
     }
 
     /** Told when settings change from outside the settings screen (adb, the phone page). */

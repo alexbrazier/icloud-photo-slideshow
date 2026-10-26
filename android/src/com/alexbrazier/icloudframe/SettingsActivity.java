@@ -75,6 +75,11 @@ public final class SettingsActivity extends Activity {
             boolean reload = "src_icloud".equals(key) || "videos".equals(key);
             FrameApp.get().sync().wake(reload);
             if (key != null && key.startsWith("night_")) Schedule.update(getActivity());
+            if ("adb_wifi".equals(key)) {
+                Adb.apply(getActivity());
+                // Shows how it went once it's done
+                handler.postDelayed(() -> { if (isAdded()) updateSummaries(); }, 3000);
+            }
             if ("weather_place".equals(key) && !writingPlace) lookUpPlace(sp.getString(key, ""));
         }
 
@@ -147,9 +152,22 @@ public final class SettingsActivity extends Activity {
             setSummary("release_owner", Device.isOwner(getActivity())
                     ? "This app is the device owner. Tap to give that up, e.g. before uninstalling it"
                     : "Not the device owner");
+            setSummary("adb_wifi", adbSummary());
             setSummary("screen_off_permission", Schedule.canTurnOff(getActivity())
                     ? "Allowed: the screen turns fully off, and a tap of the power button wakes it for 5 minutes"
                     : "Not allowed: the screen goes black and dim instead. Tap to allow.");
+        }
+
+        private String adbSummary() {
+            String mode = Adb.mode(getActivity());
+            String result = Adb.lastResult();
+            if (!"leave".equals(mode) && !result.isEmpty()) return result;
+            switch (Adb.way(getActivity())) {
+                case ROOT: return "Not changed. Can be kept on or off using root";
+                case WIRELESS_DEBUGGING: return "Not changed. Can be kept on or off using Android's Wireless debugging";
+                case NEEDS_GRANT: return "Not changed. To use it, first run over USB: " + Adb.grantCommand(getActivity());
+                default: return "Not possible on this frame: it isn't rooted and is older than Android 11";
+            }
         }
 
         private String text(String key, String fallback) {

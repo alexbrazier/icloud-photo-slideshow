@@ -90,6 +90,10 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
     private List<Slides.Item> localItems = Collections.emptyList();
     private boolean paused, dirty, nightActive, showing, resumed, askedStorage;
     private long lastRebuild, wakeUntil, weatherFetched;
+    private int listVersion = -1;
+    // How many photos ahead to download, so each has a full slide's time to arrive
+    private static final int DOWNLOAD_AHEAD = 2;
+    private final Slides.Ready ready = item -> item.guid == null || FrameApp.get().store().isSaved(item.guid);
     private String weatherKey = "", lookKey = "";
     private float brightness = Float.NaN;
     private Weather weather;
@@ -610,9 +614,14 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
 
     @Override
     public void onPhotosChanged() {
-        // Rebuilding on every download would keep reshuffling, so batch changes up
-        dirty = true;
-        if (slides.isEmpty() || slides.size() < 30) rebuild();
+        // Downloads don't change the plan, only an album's list does. Rebuilding on every change
+        // would keep reshuffling, so those are batched up.
+        if (FrameApp.get().sync().listVersion() != listVersion) {
+            dirty = true;
+            if (slides.isEmpty() || slides.size() < 30) rebuild();
+        }
+        // The first photo, or the one it was waiting for, has arrived
+        if (!showing && resumed && !slides.isEmpty()) advance(1);
         updateStatus();
     }
 
@@ -622,6 +631,7 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
             items.addAll(FrameApp.get().store().items(Albums.enabledIds(this), prefs.includeVideos()));
         }
         if (prefs.localEnabled()) items.addAll(localItems);
+        listVersion = FrameApp.get().sync().listVersion();
         slides.rebuild(items, prefs.order(), prefs.orientation(), screenLandscape());
         dirty = false;
         lastRebuild = System.currentTimeMillis();
@@ -629,6 +639,23 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
         // While paused (e.g. in Settings) the first photo waits until the slideshow is back on screen
         if (!showing && !slides.isEmpty() && resumed) advance(1);
         if (slides.isEmpty() && showing) clearImages();
+        downloadAhead();
+    }
+
+    /** Asks for the next few photos to be downloaded, so they're ready when they're due. */
+    private void downloadAhead() {
+        List<String> want = new ArrayList<>();
+        Slides.Item current = slides.current();
+        List<Slides.Item> next = slides.upcoming(DOWNLOAD_AHEAD);
+        if (current != null) next.add(0, current);
+        PhotoStore store = FrameApp.get().store();
+        boolean videos = prefs.includeVideos();
+        for (Slides.Item item : next) {
+            if (item.guid != null && !want.contains(item.guid) && store.download(item.guid, videos) != null) {
+                want.add(item.guid);
+            }
+        }
+        FrameApp.get().sync().want(want);
     }
 
     // ---- Video ----
@@ -714,7 +741,16 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
     private void advance(int direction) {
         handler.removeCallbacks(advanceTask);
         if (direction > 0 && dirty && System.currentTimeMillis() - lastRebuild > REBUILD_EVERY_MS) rebuild();
-        Slides.Item item = direction > 0 ? slides.next(prefs.order()) : slides.previous();
+        Slides.Item item = direction > 0 ? slides.next(prefs.order(), ready) : slides.previous(ready);
+        if (item != null && item.guid != null && item.video == null) {
+            // Its video may have downloaded since the order was planned
+            java.io.File video = FrameApp.get().store().savedVideo(item.guid);
+            if (video != null) {
+                item = item.withVideo(video);
+                slides.replaceCurrent(item);
+            }
+        }
+        downloadAhead();
         if (item == null) return;
         show(item);
         scheduleNext();

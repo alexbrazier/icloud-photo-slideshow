@@ -103,4 +103,11 @@
     <string-array name="unit_values">
         <item>c</item><item>f</item>
     </string-array>
+
+    <string-array name="adb_wifi_names">
+        <item>Leave as Android has it</item><item>On, after every restart</item><item>Off, after every restart</item>
+    </string-array>
+    <string-array name="adb_wifi_values">
+        <item>leave</item><item>on</item><item>off</item>
+    </string-array>
 </resources>

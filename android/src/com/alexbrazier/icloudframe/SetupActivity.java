@@ -30,6 +30,9 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable close = this::finish;
+    // Tries again while there's no network, e.g. when this opens at boot before Wi-Fi connects
+    private final Runnable retryServer = this::startServer;
+    private CharSequence hintText;
     private ImageView qr;
     private TextView hint, pinText;
     private Button wifi;
@@ -83,6 +86,7 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
         hint.setTextColor(0xFFB8C2D9);
         hint.setPadding(0, dp(14), 0, dp(18));
         info.addView(hint);
+        hintText = hint.getText();
 
         pinText = text("", 16);
         pinText.setTextColor(0xFFB8C2D9);
@@ -115,9 +119,17 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
         openingWifi = false;
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                 | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+        startServer();
+        handler.removeCallbacks(close);
+        handler.postDelayed(close, CLOSE_AFTER_MS);
+    }
+
+    private void startServer() {
+        handler.removeCallbacks(retryServer);
         try {
             SetupServer server = SetupServer.start(this, this);
             qr.setImageBitmap(QrCode.bitmap(server.url(), Math.min(FrameApp.screenShort(), 900)));
+            hint.setText(hintText);
             showPin(server);
             wifi.setVisibility(View.GONE);
         } catch (IOException e) {
@@ -125,14 +137,14 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
             hint.setText("Connect the frame to Wi-Fi first, then come back here.");
             pinText.setText("");
             wifi.setVisibility(View.VISIBLE);
+            handler.postDelayed(retryServer, 3000);
         }
-        handler.removeCallbacks(close);
-        handler.postDelayed(close, CLOSE_AFTER_MS);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+        handler.removeCallbacks(retryServer);
         // The page only exists while the code is on screen (the 15 minute limit keeps running
         // while the Wi-Fi screen is open)
         if (!openingWifi) {

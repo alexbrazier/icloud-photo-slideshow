@@ -117,6 +117,18 @@ final class Permissions {
                     Status.DENIED, "Remove the PIN in Android's security settings", null, null));
         }
 
+        Adb.Way adb = Adb.way(a);
+        items.add(new Item("Wi-Fi adb (optional)",
+                "Keeps adb over the network on or off after restarts, for the Wi-Fi adb setting. While it's on, "
+                        + "any computer on the network can ask to connect; the frame asks you before allowing one.",
+                adb == Adb.Way.ROOT ? Status.AUTOMATIC : adb == Adb.Way.WIRELESS_DEBUGGING ? Status.ALLOWED
+                        : adb == Adb.Way.NEEDS_GRANT ? Status.NOT_ASKED : Status.NOT_POSSIBLE,
+                adb == Adb.Way.ROOT ? "Uses root, which this frame has"
+                        : adb == Adb.Way.WIRELESS_DEBUGGING ? null
+                        : adb == Adb.Way.NEEDS_GRANT ? "Apps can't ask for this. Grant it once over USB: " + Adb.grantCommand(a)
+                        : "Not possible: the frame isn't rooted and is older than Android 11",
+                null, null));
+
         items.add(new Item("Internet, Wi-Fi, start at boot, wake the screen",
                 "Downloading photos and weather, the Wi-Fi screen, setting the night alarms again after a restart, "
                         + "and switching the screen back on in the morning.",

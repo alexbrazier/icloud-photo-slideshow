@@ -128,6 +128,9 @@
             android:summary="Switch the frame to another launcher" android:persistent="false" />
         <Preference android:key="release_owner" android:title="Release device owner"
             android:persistent="false" />
+        <ListPreference android:key="adb_wifi" android:title="Wi-Fi adb"
+            android:entries="@array/adb_wifi_names" android:entryValues="@array/adb_wifi_values"
+            android:defaultValue="leave" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="Updates">
