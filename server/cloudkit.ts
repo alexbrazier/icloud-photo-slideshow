@@ -112,11 +112,10 @@ async function zoneRequest(
 ): Promise<{ records?: CKRecord[] }> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const s = await session(albumId, attempt > 0);
-    const params = new URLSearchParams({
-      remapEnums: "true",
-      sharing_url_key: albumId,
-      publicAccessAuthToken: s.token,
-    });
+    // Built by hand, as the native build (scriptc) can't compile URLSearchParams
+    const params =
+      `remapEnums=true&sharing_url_key=${encodeURIComponent(albumId)}` +
+      `&publicAccessAuthToken=${encodeURIComponent(s.token)}`;
     const res = await fetch(
       `${s.partition}/database/1/com.apple.photos.cloud/production/shared/${path}?${params}`,
       {
@@ -144,8 +143,9 @@ function toPhoto(asset: CKRecord, master: CKRecord): Photo | null {
   const af = asset.fields ?? {};
   const mf = master.fields ?? {};
   if (VIDEO_TYPES.has(String(mf.itemType?.value))) return null;
-  const sources: [CKRecord, string][] = (af.resJPEGFullRes?.value as Asset)
-    ?.fileChecksum
+  const sources: [CKRecord, string][] = (
+    af.resJPEGFullRes?.value as Asset | undefined
+  )?.fileChecksum
     ? [[asset, "resJPEGFull"]]
     : [
         [master, "resJPEGMed"],
