@@ -27,15 +27,19 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The phone setup page, served on the local network only while the QR code is on screen.
- * Every path starts with a random key from the QR code, so other devices on the network can't
- * find or use it. Phones that can't scan can type the address and the 6-digit PIN shown on the
- * frame instead, which hands them the key; five wrong PINs switch that off until next time.
+ * The phone setup page, served on the local network while the QR code is on screen (or all the
+ * time with the "Keep phone setup available" setting). Every path starts with a random key from
+ * the QR code, so other devices on the network can't find or use it. Phones that can't scan can
+ * type the address and the 6-digit PIN shown on the frame instead, which hands them the key; the
+ * PIN only works while it's on screen, and five wrong tries switch it off until it's shown again.
+ * The key is new each time unless the setting is on, when it's kept so the page can be bookmarked.
  */
 final class SetupServer implements Runnable {
     interface Listener {
         void onSaved();
         void onPinLocked();
+        /** The phone page's "Back to photos" button. */
+        void onCloseRequested();
     }
 
     private static final int MAX_BODY = 64 * 1024;
@@ -46,11 +50,17 @@ final class SetupServer implements Runnable {
     // Easier to type than a random port; any free port if something else has it
     private static final int PREFERRED_PORT = 8080;
     private static SetupServer running;
+    private static final String KEY_PREF = "setup_key";
+    private static final long KEEP_RUNNING_RETRY_MS = 60_000;
 
     private final Context context;
     private final ServerSocket socket;
-    private final String key, pin;
+    private final String key;
+    private String pin;
     private int pinTries;
+    // Whether the QR code and PIN are on the frame's screen right now
+    private volatile boolean onScreen;
+    private final SecureRandom random = new SecureRandom();
     private final String address;
     private final ExecutorService workers = Executors.newFixedThreadPool(MAX_CONNECTIONS);
     private final java.util.concurrent.atomic.AtomicInteger inFlight = new java.util.concurrent.atomic.AtomicInteger();
@@ -69,16 +79,52 @@ final class SetupServer implements Runnable {
             s = new ServerSocket(0);
         }
         socket = s;
-        SecureRandom random = new SecureRandom();
+        key = keepRunning(context) ? storedKey(context) : newKey(random);
+        pin = newPin();
+    }
+
+    private static String newKey(SecureRandom random) {
         byte[] bytes = new byte[16];
         random.nextBytes(bytes);
         StringBuilder sb = new StringBuilder();
         for (byte b : bytes) sb.append(String.format(Locale.ROOT, "%02x", b));
-        key = sb.toString();
-        pin = String.format(Locale.ROOT, "%06d", random.nextInt(1_000_000));
+        return sb.toString();
     }
 
+    private String newPin() {
+        return String.format(Locale.ROOT, "%06d", random.nextInt(1_000_000));
+    }
+
+    /** The kept key for bookmarks, made the first time it's needed. */
+    private static String storedKey(Context context) {
+        SharedPreferences prefs = new Prefs(context).raw();
+        String key = prefs.getString(KEY_PREF, "");
+        if (!key.matches("[0-9a-f]{32}")) {
+            key = newKey(new SecureRandom());
+            prefs.edit().putString(KEY_PREF, key).apply();
+        }
+        return key;
+    }
+
+    static boolean keepRunning(Context context) {
+        return new Prefs(context).raw().getBoolean("setup_always", false);
+    }
+
+    /** For the setup screen: starts the page if needed, and shows a fresh PIN. */
     static synchronized SetupServer start(Context context, Listener listener) throws IOException {
+        SetupServer server = launch(context);
+        synchronized (server) {
+            if (!server.onScreen) {
+                server.pin = server.newPin();
+                server.pinTries = 0;
+            }
+            server.onScreen = true;
+        }
+        server.listener = listener;
+        return server;
+    }
+
+    private static synchronized SetupServer launch(Context context) throws IOException {
         if (running == null) {
             running = new SetupServer(context);
             Thread t = new Thread(running, "setup-server");
@@ -86,8 +132,36 @@ final class SetupServer implements Runnable {
             t.start();
             Log.i("Phone setup page open");
         }
-        running.listener = listener;
         return running;
+    }
+
+    /** For the setup screen closing: stops the page, unless it's set to keep running. */
+    static synchronized void release(Context context) {
+        if (running == null) return;
+        running.listener = null;
+        running.onScreen = false;
+        if (!keepRunning(context)) stop();
+    }
+
+    /**
+     * Applies the "Keep phone setup available" setting: at startup and when it changes. Turning
+     * it off forgets the kept key, so bookmarked links stop working.
+     */
+    static synchronized void applySetting(Context context) {
+        Context app = context.getApplicationContext();
+        boolean keep = keepRunning(app);
+        if (!keep) new Prefs(app).raw().edit().remove(KEY_PREF).apply();
+        // A running page has the key it started with, so restart it with the right one
+        if (running != null && !running.onScreen) stop();
+        if (!keep || running != null) return;
+        try {
+            launch(app);
+        } catch (IOException e) {
+            // Not on Wi-Fi yet, e.g. just after a restart
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (keepRunning(app) && running == null) applySetting(app);
+            }, KEEP_RUNNING_RETRY_MS);
+        }
     }
 
     static synchronized void stop() {
@@ -109,7 +183,9 @@ final class SetupServer implements Runnable {
 
     /** The address to type, without the key, for pairing with the PIN. */
     String base() {
-        return "http://" + address + ":" + socket.getLocalPort();
+        // Looked up again, as a page that keeps running can outlast a change of Wi-Fi address
+        String now = lanAddress();
+        return "http://" + (now != null ? now : address) + ":" + socket.getLocalPort();
     }
 
     /** The PIN, or null once it's been locked by wrong guesses. */
@@ -214,7 +290,17 @@ final class SetupServer implements Runnable {
         int end = path.indexOf('/', 1);
         String given = path.startsWith("/") ? path.substring(1, end < 0 ? path.length() : end) : "";
         if (!MessageDigest.isEqual(given.getBytes(StandardCharsets.UTF_8), key.getBytes(StandardCharsets.UTF_8))) {
-            respond(s, 404, "text/plain", "Not found");
+            // Most likely a link from an earlier time the code was shown (each time gets a new
+            // key): send pages to the PIN page, and tell an open page so it can go there itself
+            if (given.matches("[0-9a-f]{32}") && path.contains("/api/")) {
+                respond(s, 401, "application/json", new JSONObject().put("expired", true)
+                        .put("error", "This link has expired").toString());
+            } else if (given.matches("[0-9a-f]{32}") && method.equals("GET")) {
+                respondRaw(s, "HTTP/1.1 302 Found\r\nLocation: /?expired=1\r\nCache-Control: no-store\r\n"
+                        + "Content-Length: 0\r\nConnection: close\r\n\r\n");
+            } else {
+                respond(s, 404, "text/plain", "Not found");
+            }
             return;
         }
         String rest = path.substring(prefix.length());
@@ -230,6 +316,10 @@ final class SetupServer implements Runnable {
             save(s, body);
         } else if (rest.equals("/api/albums") && method.equals("POST")) {
             albums(s, body);
+        } else if (rest.equals("/api/close") && method.equals("POST")) {
+            Listener l = listener;
+            if (l != null) main.post(l::onCloseRequested);
+            respond(s, 200, "application/json", state().put("onScreen", false).toString());
         } else if (rest.equals("/api/sync") && method.equals("POST")) {
             FrameApp.get().sync().wake(true);
             respond(s, 200, "application/json", state().toString());
@@ -244,12 +334,14 @@ final class SetupServer implements Runnable {
         for (Albums.Album a : Albums.list(context)) {
             albums.put(new JSONObject().put("id", a.id).put("on", a.on).put("name", store.name(a.id))
                     .put("count", store.count(a.id)).put("saved", store.savedCount(a.id))
-                    .put("error", store.error(a.id)));
+                    .put("error", store.error(a.id).isEmpty() ? "" : Sync.friendly(store.error(a.id))));
         }
         return SettingsSchema.describe(context)
                 .put("albums", albums)
                 .put("status", FrameApp.get().sync().status())
-                .put("version", Updater.currentVersion(context));
+                .put("version", Updater.currentVersion(context))
+                .put("onScreen", onScreen)
+                .put("keepRunning", keepRunning(context));
     }
 
     /** {"add": link}, {"remove": id} or {"id": id, "on": true/false}. */
@@ -322,6 +414,11 @@ final class SetupServer implements Runnable {
             given = new JSONObject(body).optString("pin").replaceAll("\\D", "");
         } catch (JSONException e) {
             given = "";
+        }
+        if (!onScreen) {
+            respond(s, 403, "application/json", new JSONObject().put("error",
+                    "Open Phone setup on the frame to see the PIN, or scan its QR code.").toString());
+            return;
         }
         boolean ok, locked;
         synchronized (this) {

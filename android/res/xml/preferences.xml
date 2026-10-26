@@ -6,6 +6,8 @@
         <Preference android:key="phone_setup" android:title="Set up from your phone"
             android:summary="The easiest way: scan a QR code to add albums and change any setting from your phone"
             android:persistent="false" />
+        <SwitchPreference android:key="setup_always" android:title="Keep phone setup available"
+            android:defaultValue="false" />
         <Preference android:key="albums" android:title="Albums" android:persistent="false" />
         <Preference android:key="wifi" android:title="Wi-Fi"
             android:summary="Connect the frame to a network, or change it" android:persistent="false" />
@@ -40,7 +42,7 @@
             android:defaultValue="2048" android:summary="%s" />
         <Preference android:key="sync_now" android:title="Check album now" android:persistent="false" />
         <Preference android:key="clear_cache" android:title="Delete saved photos"
-            android:summary="Downloads them again from the album" android:persistent="false" />
+            android:summary="Frees up storage. Photos download again as they're shown" android:persistent="false" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="Display">
@@ -121,11 +123,11 @@
             android:dialogMessage="24-hour time, e.g. 07:00" android:singleLine="true" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="Device">
+    <PreferenceCategory android:title="Advanced">
         <Preference android:key="android_settings" android:title="Android settings"
             android:summary="Press Home or reboot to come back to the frame" android:persistent="false" />
         <Preference android:key="other_home" android:title="Choose Home app"
-            android:summary="Switch the frame to another launcher" android:persistent="false" />
+            android:summary="Use a different app as the frame's Home screen" android:persistent="false" />
         <Preference android:key="release_owner" android:title="Release device owner"
             android:persistent="false" />
         <ListPreference android:key="adb_wifi" android:title="Wi-Fi adb"

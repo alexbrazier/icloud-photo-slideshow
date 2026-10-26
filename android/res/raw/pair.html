@@ -38,13 +38,19 @@
     </g>
   </svg>
   <h1>Frame setup</h1>
-  <p>Enter the PIN shown on the frame.</p>
+  <p id="intro">Enter the PIN shown on the frame.</p>
   <input id="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000 000" aria-label="PIN" autofocus>
   <button type="submit">Continue</button>
   <div id="error" role="alert"></div>
 </form>
 <script>
 "use strict";
+if (new URLSearchParams(location.search).has("expired")) {
+  document.querySelector("h1").textContent = "This link has expired";
+  document.getElementById("intro").textContent =
+    "The frame makes a new link each time it shows its code. Scan the new QR code on the frame, or enter the PIN shown under it.";
+  history.replaceState(null, "", "/");
+}
 document.getElementById("pair").addEventListener("submit", async e => {
   e.preventDefault();
   const error = document.getElementById("error");

@@ -58,6 +58,8 @@ final class Sync implements Runnable {
     // Goes up when an album's list of photos changes, so the slideshow knows to replan
     private volatile int listVersion;
     private volatile String status = "Starting";
+    // Whether the status is something to point out (offline, iCloud busy...) rather than routine
+    private volatile boolean problem;
     private volatile String lastError = "";
 
     Sync(Context context, PhotoStore store) {
@@ -93,13 +95,62 @@ final class Sync implements Runnable {
 
     int listVersion() { return listVersion; }
 
+    private void setStatus(String text, boolean isProblem) {
+        status = text;
+        problem = isProblem;
+    }
+
+    /** A short status for the phone page and the loading screen. */
     String status() {
-        String s = status;
+        String error = lastError.isEmpty() ? "" : friendly(lastError);
+        return problem && !error.isEmpty() && !status.startsWith("iCloud is busy") ? status + ". " + error : status;
+    }
+
+    /** Something worth pointing out on the slideshow's controls, or "" when all is well. */
+    String problem() {
+        return problem ? status : "";
+    }
+
+    /** The full picture, for Settings → Status. */
+    String details() {
         List<String> enabled = Albums.enabledIds(context);
-        int total = store.totalCount(enabled);
-        if (total > 0) s += " · " + store.totalSaved(enabled) + " of " + total + " saved";
-        if (!lastError.isEmpty()) s += "\nLast error: " + lastError;
+        int total = store.totalCount(enabled), saved = store.totalSaved(enabled);
+        String s = status;
+        if (total > 0) {
+            s += "\n" + total + (total == 1 ? " photo" : " photos") + " in your albums, " + saved + " saved on the frame";
+        }
+        // A current problem is already the status
+        if (!problem && !lastError.isEmpty()) s += "\nLast problem: " + friendly(lastError);
         return s;
+    }
+
+    private static String time(long millis) {
+        return new java.text.SimpleDateFormat("HH:mm", java.util.Locale.ROOT).format(new java.util.Date(millis));
+    }
+
+    /** Turns technical errors into something the frame's owner can act on. */
+    static String friendly(String error) {
+        String e = error == null ? "" : error;
+        String lower = e.toLowerCase(java.util.Locale.ROOT);
+        if (e.contains("HTTP 509") || e.contains("HTTP 429") || e.contains("HTTP 503")) {
+            return "iCloud asked the frame to slow down for a while";
+        }
+        if (lower.contains("unable to resolve") || lower.contains("unknownhost") || lower.contains("timed out")
+                || lower.contains("timeout") || lower.contains("failed to connect") || lower.contains("connection")
+                || lower.contains("network is unreachable")) {
+            return "Couldn't reach iCloud. Check the frame's internet connection";
+        }
+        if (lower.contains("certpath") || lower.contains("trust anchor") || lower.contains("ssl")
+                || lower.contains("handshake") || lower.contains("certificate")) {
+            return "Couldn't make a secure connection. Check the frame's date and time";
+        }
+        if (lower.contains("too large")) return "A photo was too large to download";
+        if (lower.contains("unexpected") || e.matches(".*HTTP \\d+.*")) {
+            return "iCloud had a problem. The frame will try again";
+        }
+        // Album messages ("Album not found...") are already written for people
+        int colon = e.indexOf(": ");
+        return colon > 0 && e.startsWith("Couldn't") ? e.substring(colon + 2) : e;
     }
 
     @Override
@@ -133,20 +184,20 @@ final class Sync implements Runnable {
         store.keepAlbums(Albums.allIds(context));
         List<String> enabled = Albums.enabledIds(context);
         if (!prefs.iCloudEnabled()) {
-            status = "iCloud albums off";
+            setStatus("iCloud albums are off", false);
             return LIST_REFRESH_MS;
         }
         if (enabled.isEmpty()) {
-            status = "No album switched on";
+            setStatus("No album switched on", true);
             return LIST_REFRESH_MS;
         }
         if (!Net.online(context)) {
-            status = "Offline, showing saved photos";
+            setStatus("Offline, showing saved photos", true);
             return 60_000;
         }
         if (!Clock.isSet()) {
             // HTTPS can't work until the frame has the time (no clock battery)
-            status = "Waiting for the time to be set";
+            setStatus("Waiting for the clock to be set", true);
             return 15_000;
         }
 
@@ -203,7 +254,7 @@ final class Sync implements Runnable {
         }
         if (next == null && pausedFor != Long.MAX_VALUE) {
             store.flush();
-            status = "iCloud asked to slow down, retrying in a few minutes";
+            setStatus("iCloud is busy, trying again at " + time(now + pausedFor), true);
             return pausedFor;
         }
         long limit = prefs.cacheLimitBytes();
@@ -211,12 +262,12 @@ final class Sync implements Runnable {
         if (store.evict(enabled, next == null ? null : next.entry, limit)) notifyChanged();
         if (next == null) {
             store.flush();
-            status = "Up to date (photos download just before they're shown)";
+            setStatus("Up to date", false);
             return Math.min(LIST_REFRESH_MS, Math.max(60_000, nextCheck));
         }
         if (store.savedBytes() > limit || store.usableSpace() < MIN_FREE_SPACE) {
             store.flush();
-            status = "Storage limit reached";
+            setStatus("Storage full, showing saved photos", true);
             return Math.min(LIST_REFRESH_MS, Math.max(60_000, nextCheck));
         }
         return download(next);
@@ -224,7 +275,7 @@ final class Sync implements Runnable {
 
     /** Reloads one album's list. Returns false if it failed (recorded against the album). */
     private boolean loadAlbum(String album) {
-        status = "Checking album";
+        setStatus("Checking albums", false);
         try {
             ICloud icloud = new ICloud(album, store.host(album));
             ICloud.Album result = icloud.album();
@@ -256,7 +307,7 @@ final class Sync implements Runnable {
 
     private long download(PhotoStore.Download next) {
         PhotoStore.Entry e = next.entry;
-        status = next.video ? "Saving videos" : "Saving photos";
+        setStatus(next.video ? "Downloading a video" : "Downloading photos", false);
         File tmp = new File(context.getCacheDir(), "download.tmp");
         int generation = store.generation();
         try {
@@ -291,7 +342,7 @@ final class Sync implements Runnable {
                 rateLimitMs = Math.min(rateLimitMs * 2, MAX_RATE_LIMIT_RETRY_MS);
                 return 1000;
             }
-            status = "Retrying soon";
+            setStatus("Couldn't download a photo, trying again soon", true);
             long wait = downloadRetryMs;
             downloadRetryMs = Math.min(wait * 2, MAX_RETRY_MS);
             return wait;

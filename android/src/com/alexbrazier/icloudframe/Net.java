@@ -46,11 +46,26 @@ final class Net {
             managers.add(trustManager(null));
             KeyStore bundled = KeyStore.getInstance(KeyStore.getDefaultType());
             bundled.load(null, null);
+            String pem;
             try (InputStream in = context.getResources().openRawResource(R.raw.roots)) {
-                int i = 0;
-                for (Certificate cert : CertificateFactory.getInstance("X.509").generateCertificates(in)) {
-                    bundled.setCertificateEntry("root" + i++, cert);
-                }
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                pem = out.toString("UTF-8");
+            }
+            // One at a time: Android 6 can't read a file with the "# name" lines between them, and
+            // falling back to the system's roots alone loses Let's Encrypt (GitHub downloads, weather)
+            CertificateFactory factory = CertificateFactory.getInstance("X.509");
+            String end = "-----END CERTIFICATE-----";
+            int i = 0;
+            for (int from = pem.indexOf("-----BEGIN CERTIFICATE-----"); from >= 0;
+                 from = pem.indexOf("-----BEGIN CERTIFICATE-----", from + 1)) {
+                int to = pem.indexOf(end, from);
+                if (to < 0) break;
+                byte[] block = pem.substring(from, to + end.length()).getBytes(StandardCharsets.US_ASCII);
+                Certificate cert = factory.generateCertificate(new java.io.ByteArrayInputStream(block));
+                bundled.setCertificateEntry("root" + i++, cert);
             }
             managers.add(trustManager(bundled));
             SSLContext ssl = SSLContext.getInstance("TLS");

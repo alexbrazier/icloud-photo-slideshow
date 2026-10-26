@@ -37,6 +37,9 @@
   .row input[type=text], .row input[type=search] { flex: 1 1 200px; }
   input[type=color] { width: 48px; height: 34px; border: 0; padding: 0; background: none; border-radius: 8px; }
   .hidden { display: none !important; }
+  #close { font: inherit; font-weight: 600; margin-left: auto; padding: 9px 14px; border: 0; border-radius: 10px;
+    background: var(--accent); color: #fff; flex: none; }
+  #done { text-align: center; padding: 48px 16px; }
 
   /* iOS-style switches */
   input.switch { appearance: none; -webkit-appearance: none; flex: none; width: 51px; height: 31px; margin: 0;
@@ -93,6 +96,7 @@
       <h1>Frame setup</h1>
       <div id="status">Loading…</div>
     </div>
+    <button type="button" id="close" class="hidden">Back to photos</button>
   </header>
 
   <h2>Albums</h2>
@@ -100,7 +104,7 @@
   <p class="note">Switch on the albums to show; several can be on at once. Albums that are off keep their saved photos.</p>
 
   <div id="form"></div>
-  <p class="note" style="margin-top:24px">Changes save as you make them. This page only works while the setup screen is showing on the frame.</p>
+  <p class="note" style="margin-top:24px" id="endnote">Changes save as you make them. This page only works while the setup screen is showing on the frame.</p>
 </main>
 <div id="toast" role="status"></div>
 <script>
@@ -155,7 +159,7 @@ function renderAlbums(albums) {
     });
     const info = el("div", { class: "info" }, [
       el("div", { class: "name", text: a.name || "Album " + a.id.slice(0, 6) + "…" }),
-      el("div", { class: "meta", text: a.count ? a.saved + " of " + a.count + " saved" : "Not loaded yet" }),
+      el("div", { class: "meta", text: a.count ? a.count + (a.count === 1 ? " photo" : " photos") : "Not loaded yet" }),
       a.error ? el("div", { class: "err", text: a.error }) : null,
       remove,
     ]);
@@ -253,6 +257,10 @@ function render(state) {
 /** Status, albums and current values, without rebuilding the form (so focus isn't lost). */
 function update(state) {
   document.getElementById("status").textContent = state.status + "\nApp version " + state.version;
+  document.getElementById("close").classList.toggle("hidden", !state.onScreen);
+  document.getElementById("endnote").textContent = "Changes save as you make them. " + (state.keepRunning
+    ? "This page keeps working while the frame shows photos, so you can bookmark it."
+    : "This page only works while the setup screen is showing on the frame.");
   renderAlbums(state.albums || []);
   loaded = {};
   for (const f of state.fields) {
@@ -331,6 +339,8 @@ async function call(method, path, body) {
     body: body ? JSON.stringify(body) : undefined, cache: "no-store",
   });
   const data = await r.json().catch(() => ({}));
+  // The frame has shown a new code since this page opened
+  if (r.status === 401 && data.expired) location.replace("/?expired=1");
   if (!r.ok) throw new Error(data.error || "The frame returned an error (" + r.status + ")");
   return data;
 }
@@ -355,6 +365,24 @@ async function load() {
     document.getElementById("status").textContent = "Couldn't reach the frame. Is the setup screen still showing?";
   }
 }
+
+document.getElementById("close").addEventListener("click", async () => {
+  try {
+    const state = await call("POST", "api/close");
+    if (state.keepRunning) {
+      update(state);
+      toast("The frame is showing photos again");
+    } else {
+      // The frame stops serving this page once its setup screen closes
+      document.querySelector("main").replaceChildren(el("div", { id: "done" }, [
+        el("h1", { text: "Back to photos" }),
+        el("p", { class: "note", text: "Your changes are saved. To change anything later, open Phone setup on the frame and scan its new code." }),
+      ]));
+    }
+  } catch (e) {
+    toast(e.message, true);
+  }
+});
 
 load();
 </script>

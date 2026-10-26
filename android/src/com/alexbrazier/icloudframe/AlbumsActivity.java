@@ -208,8 +208,8 @@ public final class AlbumsActivity extends Activity {
             TextView text = new TextView(AlbumsActivity.this);
             String name = store.name(a.id);
             int count = store.count(a.id);
-            String meta = count > 0 ? store.savedCount(a.id) + " of " + count + " saved" : "Not loaded yet";
-            String error = store.error(a.id);
+            String meta = count > 0 ? count + (count == 1 ? " photo" : " photos") : "Not loaded yet";
+            String error = store.error(a.id).isEmpty() ? "" : Sync.friendly(store.error(a.id));
             text.setText((name.isEmpty() ? "Album " + a.id.substring(0, 6) + "…" : name) + "\n" + meta
                     + (error.isEmpty() ? "" : "\n" + error));
             text.setTextSize(16);

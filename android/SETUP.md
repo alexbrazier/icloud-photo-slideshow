@@ -110,6 +110,13 @@ No camera, or the code won't scan? The QR screen also shows an address like `192
 and a 6-digit PIN: type the address into the phone's browser and enter the PIN. Five wrong PINs
 switch the PIN off until the setup screen is opened again.
 
+When you're done, tap **Back to photos** on the phone page to close the setup screen on the frame.
+
+To keep the phone page available without opening it on the frame each time, turn on Settings →
+**Keep phone setup available** on the frame, scan the code once and bookmark the page. The link
+then stays the same, even after restarts. The PIN still only works while the code is on the
+frame's screen. Turning the setting off cancels the bookmarked link.
+
 The defaults are sensible, so the album is all you need to set: it shuffles, shows each photo for
 a minute, fills the screen when a photo's shape matches it, and puts a blurred copy behind photos
 that don't. Change anything else on the same page; changes save as you make them.
@@ -192,7 +199,9 @@ To publish an update, see [Releasing updates](README.md#releasing-updates).
   below.
 - **The phone setup page** only exists while its QR screen is showing (at most 15 minutes), and
   every address needs the random key in the QR code. The typed-address route needs the 6-digit
-  PIN, which locks after five wrong tries.
+  PIN, which only works while it's on screen and locks after five wrong tries. With **Keep phone
+  setup available** on, the page stays up and its key stays the same, so anyone on the network
+  who has the link can change settings; leave it off on shared or guest networks.
 - **Shared album links** are public to anyone who has them. The frame keeps the link in its own
   private storage, but a frame thrown away without a reset still has it and its saved photos.
   Remove the album (which deletes its saved photos straight away) or factory reset the frame

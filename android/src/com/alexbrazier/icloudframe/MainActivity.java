@@ -935,7 +935,8 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
         } else if (needsSetup) {
             message = "Add an iCloud shared album to get started.";
         } else {
-            message = "Loading photos…\n" + FrameApp.get().sync().status().split("\n")[0];
+            // Only mention the sync when something's holding it up
+            message = "Loading photos…" + (FrameApp.get().sync().problem().isEmpty() ? "" : "\n" + FrameApp.get().sync().status());
         }
         statusText.setText(message);
         spinner.setVisibility(needsSetup ? View.GONE : View.VISIBLE);
@@ -961,9 +962,11 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
         return true;
     }
 
+    /** Under the photo's details: how many photos, and anything that needs attention. */
     private String statusLine() {
         int count = slides.size();
-        return count + (count == 1 ? " photo" : " photos") + " · " + FrameApp.get().sync().status().replace("\n", " · ");
+        String problem = FrameApp.get().sync().problem();
+        return count + (count == 1 ? " photo" : " photos") + (problem.isEmpty() ? "" : " · " + problem);
     }
 
     // ---- Clock, weather and night ----

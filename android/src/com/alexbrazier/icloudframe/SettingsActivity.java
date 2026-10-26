@@ -42,7 +42,7 @@ public final class SettingsActivity extends Activity {
             @Override
             public void run() {
                 Preference status = findPreference("status");
-                if (status != null) status.setSummary(FrameApp.get().sync().status());
+                if (status != null) status.setSummary(FrameApp.get().sync().details());
                 handler.postDelayed(this, 2000);
             }
         };
@@ -75,6 +75,7 @@ public final class SettingsActivity extends Activity {
             boolean reload = "src_icloud".equals(key) || "videos".equals(key);
             FrameApp.get().sync().wake(reload);
             if (key != null && key.startsWith("night_")) Schedule.update(getActivity());
+            if ("setup_always".equals(key)) SetupServer.applySetting(getActivity());
             if ("adb_wifi".equals(key)) {
                 Adb.apply(getActivity());
                 // Shows how it went once it's done
@@ -132,7 +133,7 @@ public final class SettingsActivity extends Activity {
             }
             setSummary("albums", albums.isEmpty() ? "None yet: tap to add one"
                     : on == 0 ? albums.size() + " saved, none switched on"
-                    : "Showing " + names + (albums.size() > on ? " (" + albums.size() + " saved)" : ""));
+                    : "Showing " + names + (albums.size() > on ? " (" + albums.size() + " albums added)" : ""));
             setSummary("weather_place", text("weather_place", "Type a town or city to fill in the coordinates"));
             setSummary("weather_lat", text("weather_lat", "Not set"));
             setSummary("weather_lon", text("weather_lon", "Not set"));
@@ -153,6 +154,10 @@ public final class SettingsActivity extends Activity {
                     ? "This app is the device owner. Tap to give that up, e.g. before uninstalling it"
                     : "Not the device owner");
             setSummary("adb_wifi", adbSummary());
+            setSummary("setup_always", SetupServer.keepRunning(getActivity())
+                    ? "On: bookmark the phone page to use it any time. Anyone on your Wi-Fi with the link can change "
+                            + "settings; turning this off cancels the link"
+                    : "Off: the phone page only works while its code is on the frame");
             setSummary("screen_off_permission", Schedule.canTurnOff(getActivity())
                     ? "Allowed: the screen turns fully off, and a tap of the power button wakes it for 5 minutes"
                     : "Not allowed: the screen goes black and dim instead. Tap to allow.");

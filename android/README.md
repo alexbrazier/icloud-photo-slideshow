@@ -43,7 +43,8 @@ album from an iPhone, updates, security, and recovering if something goes wrong.
   network only while the QR code is on screen (it closes after 15 minutes), and every address
   includes a random 128-bit key from the QR code, so other devices on the network can't reach it.
   Phones that can't scan can type the address shown and a 6-digit PIN instead, which locks after
-  five wrong tries.
+  five wrong tries. **Back to photos** on the page closes the setup screen. Optionally, **Keep
+  phone setup available** keeps the page up with the same link, so it can be bookmarked.
 - **Auto-update** from this repository's GitHub releases (see below).
 - Android 6 and newer (API 23+). About 120 KB, no Google Play services needed.
 
@@ -129,8 +130,9 @@ it, turn it off, confirm it stays off after a reboot, and get back in from the f
 afterwards (no USB needed).
 
 The app itself only connects out (Apple, MET Norway, Open-Meteo, GitHub). The phone setup page
-is only served while its QR screen is open and needs the QR code's random key or a 6-digit PIN
-that locks after five wrong tries; settings over adb need the shell's `DUMP` permission; and
+is only served while its QR screen is open (or always, with the opt-in Keep phone setup
+available setting, using a kept key) and needs the QR code's random key or a 6-digit PIN that
+only works while shown and locks after five wrong tries; settings over adb need the shell's `DUMP` permission; and
 updates only install if signed with the same key.
 
 ## Troubleshooting

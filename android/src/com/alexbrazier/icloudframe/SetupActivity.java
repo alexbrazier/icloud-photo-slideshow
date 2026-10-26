@@ -20,8 +20,8 @@ import android.widget.Toast;
 import java.io.IOException;
 
 /**
- * Shows a QR code for the phone setup page. The page is only served while this screen is open,
- * and it closes itself after 15 minutes.
+ * Shows a QR code for the phone setup page. The page is only served while this screen is open
+ * (unless "Keep phone setup available" is on), and it closes itself after 15 minutes.
  */
 public final class SetupActivity extends Activity implements SetupServer.Listener {
     private static final long CLOSE_AFTER_MS = 15 * 60 * 1000L;
@@ -145,18 +145,18 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
     protected void onPause() {
         super.onPause();
         handler.removeCallbacks(retryServer);
-        // The page only exists while the code is on screen (the 15 minute limit keeps running
-        // while the Wi-Fi screen is open)
+        // The page only exists while the code is on screen, unless it's set to keep running (the
+        // 15 minute limit keeps going while the Wi-Fi screen is open)
         if (!openingWifi) {
             handler.removeCallbacks(close);
-            SetupServer.stop();
+            SetupServer.release(this);
         }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        SetupServer.stop();
+        SetupServer.release(this);
     }
 
     private void showPin(SetupServer server) {
@@ -178,6 +178,11 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
         sb.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD), start, sb.length(), 0);
         sb.setSpan(new android.text.style.RelativeSizeSpan(size), start, sb.length(), 0);
         sb.setSpan(new android.text.style.ForegroundColorSpan(Color.WHITE), start, sb.length(), 0);
+    }
+
+    @Override
+    public void onCloseRequested() {
+        finish();
     }
 
     @Override
