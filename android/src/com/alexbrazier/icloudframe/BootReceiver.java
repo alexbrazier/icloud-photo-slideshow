@@ -10,10 +10,13 @@ public final class BootReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         // Alarms don't survive a reboot or an update
         Schedule.update(context);
+        // Android 10+ quietly ignores this unless the app is Home or has "Display over other apps"
+        if (!Device.canStartFromBackground(context)) {
+            Log.w("Can't open after a restart: allow Display over other apps (Settings → Device)");
+        }
         try {
             context.startActivity(new Intent(context, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (RuntimeException e) {
-            // Android 10+ blocks starts from the background; being the Home app covers that
             Log.w("Couldn't start after boot: " + e);
         }
     }

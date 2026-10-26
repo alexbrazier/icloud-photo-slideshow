@@ -13,6 +13,10 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Switches the screen back on at the end of the night schedule -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- "Display over other apps": Android 10+ only lets an app that has it (or is the Home app)
+         open itself from the background, which starting after a reboot and waking for the
+         morning both need. Fire tablets don't allow other Home apps, so they rely on this. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:name=".FrameApp"
@@ -54,6 +58,12 @@
         <activity
             android:name=".AlbumsActivity"
             android:label="Albums"
+            android:theme="@android:style/Theme.Material.Light.DarkActionBar"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
+
+        <activity
+            android:name=".PermissionsActivity"
+            android:label="Permissions"
             android:theme="@android:style/Theme.Material.Light.DarkActionBar"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
 

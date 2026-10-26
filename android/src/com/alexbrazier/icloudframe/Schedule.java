@@ -91,7 +91,9 @@ final class Schedule {
         try {
             context.startActivity(new Intent(context, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (RuntimeException e) {
-            // Blocked from the background on newer Android; as the Home app it's on top anyway
+            // Usually it's still on top; Android 10+ only lets it come forward itself as the
+            // Home app or with "Display over other apps"
+            Log.w("Couldn't bring the slideshow forward: " + e);
         }
         Log.i("Screen on for the morning");
     }

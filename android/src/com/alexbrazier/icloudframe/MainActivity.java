@@ -78,9 +78,11 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
     private Prefs prefs;
     private FrameLayout root;
     private final FrameLayout[] corners = new FrameLayout[4];
-    private LinearLayout clockBox, controls;
-    private TextView clockTime, clockDate, weatherText, statusText, controlsStatus, caption;
-    private Button playButton, setupButton;
+    private LinearLayout clockBox;
+    private FrameLayout controls;
+    private TextView clockTime, clockDate, weatherText, statusText, controlsTitle, controlsStatus, caption;
+    private android.widget.ImageButton playButton;
+    private Button setupButton;
     private View nightCover;
     private LinearLayout splash;
     private ProgressBar spinner;
@@ -93,8 +95,11 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
     private Weather weather;
     private GestureDetector gestures;
 
+    // Static, so it's once per app start rather than once per screen (which rotating recreates)
+    private static boolean askedStartThisRun, openedSetupThisRun;
+
     private final Runnable advanceTask = () -> advance(1);
-    private final Runnable hideControls = () -> controls.setVisibility(View.GONE);
+    private final Runnable hideControls = this::hideControls;
     private final Runnable tick = new Runnable() {
         @Override
         public void run() {
@@ -163,6 +168,30 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
         handler.post(tick);
     }
 
+    /**
+     * On frames where the app can't open itself after a restart (it isn't Home and lacks
+     * "Display over other apps", as on every Fire tablet), offers to turn that on: once each time
+     * the app starts, and only once it's actually on screen (not behind a lock screen), until
+     * it's allowed or the answer is "Don't ask again".
+     */
+    private void askToStartByItself() {
+        SharedPreferences sp = prefs.raw();
+        if (askedStartThisRun || Device.canStartFromBackground(this)
+                || sp.getBoolean("never_ask_start_on_boot", false)) return;
+        askedStartThisRun = true;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Start by itself?")
+                .setMessage("To open the slideshow after a restart or power cut, and bring it back for the "
+                        + "morning, it needs Display over other apps. On the next screen, tap iCloud Frame (and "
+                        + "turn it on, if there's a switch), then press Back. You can do this later in "
+                        + "Settings → Screen schedule → Start by itself.")
+                .setPositiveButton("Continue", (d, w) -> Device.requestBackgroundStart(this))
+                .setNegativeButton("Not now", null)
+                .setNeutralButton("Don't ask again",
+                        (d, w) -> sp.edit().putBoolean("never_ask_start_on_boot", true).apply())
+                .show();
+    }
+
     @Override
     protected void onPause() {
         super.onPause();
@@ -197,7 +226,11 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) hideSystemUi();
+        if (hasFocus) {
+            hideSystemUi();
+            // Setting up comes first; the "start by itself" question waits until it's done
+            if (!openSetupIfNew()) askToStartByItself();
+        }
     }
 
     @Override
@@ -344,41 +377,82 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
         return t;
     }
 
+    /**
+     * The tap overlay: what's showing and the frame's status along the top, with Phone setup and
+     * Settings, and Back, Play/Pause and Next along the bottom. Dark gradients behind each keep
+     * them readable on any photo; the middle is left clear, so a tap there hides it again.
+     */
     private void buildControls() {
-        controls = new LinearLayout(this);
-        controls.setOrientation(LinearLayout.VERTICAL);
-        controls.setGravity(Gravity.CENTER_HORIZONTAL);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xB0000000);
-        bg.setCornerRadius(dp(18));
-        controls.setBackground(bg);
-        controls.setPadding(dp(16), dp(12), dp(16), dp(12));
+        controls = new FrameLayout(this);
 
-        controlsStatus = new TextView(this);
-        controlsStatus.setTextColor(0xFFDDDDDD);
-        controlsStatus.setTextSize(13);
-        controlsStatus.setGravity(Gravity.CENTER);
-        controlsStatus.setPadding(0, 0, 0, dp(8));
-        controls.addView(controlsStatus, new LinearLayout.LayoutParams(-2, -2));
-
-        LinearLayout row = new LinearLayout(this);
-        row.setGravity(Gravity.CENTER);
-        row.addView(controlButton("◀  Back", v -> advance(-1)));
-        playButton = controlButton("Pause", v -> togglePause());
-        row.addView(playButton);
-        row.addView(controlButton("Next  ▶", v -> advance(1)));
-        row.addView(controlButton("Settings", v -> openSettings()));
-        row.addView(controlButton("Phone setup", v -> {
-            controls.setVisibility(View.GONE);
+        LinearLayout top = new LinearLayout(this);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        top.setPadding(dp(28), dp(20), dp(16), dp(64));
+        top.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[] {0xD9000000, 0x80000000, 0x00000000}));
+        LinearLayout text = new LinearLayout(this);
+        text.setOrientation(LinearLayout.VERTICAL);
+        controlsTitle = overlayText();
+        controlsTitle.setTextSize(20);
+        controlsTitle.setSingleLine();
+        controlsTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        controlsStatus = overlayText();
+        controlsStatus.setTextSize(15);
+        controlsStatus.setTextColor(0xF2FFFFFF);
+        controlsStatus.setPadding(0, dp(6), 0, 0);
+        text.addView(controlsTitle);
+        text.addView(controlsStatus);
+        top.addView(text, new LinearLayout.LayoutParams(0, -2, 1f));
+        top.addView(iconButton(R.drawable.ic_phone, "Phone setup", 52, false, v -> {
+            hideControls();
             startActivity(new Intent(this, SetupActivity.class));
         }));
-        // Wrap, not the default match_parent, or the panel shrinks to the status text and clips the buttons
-        controls.addView(row, new LinearLayout.LayoutParams(-2, -2));
+        top.addView(iconButton(R.drawable.ic_settings, "Settings", 52, false, v -> openSettings()));
+        controls.addView(top, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP));
+
+        LinearLayout bottom = new LinearLayout(this);
+        bottom.setGravity(Gravity.CENTER);
+        bottom.setPadding(0, dp(72), 0, dp(28));
+        bottom.setBackground(new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP,
+                new int[] {0xB3000000, 0x59000000, 0x00000000}));
+        bottom.addView(iconButton(R.drawable.ic_previous, "Previous photo", 64, false, v -> advance(-1)));
+        playButton = iconButton(R.drawable.ic_pause, "Pause", 84, true, v -> togglePause());
+        LinearLayout.LayoutParams playLp = (LinearLayout.LayoutParams) playButton.getLayoutParams();
+        playLp.setMargins(dp(28), 0, dp(28), 0);
+        bottom.addView(playButton);
+        bottom.addView(iconButton(R.drawable.ic_next, "Next photo", 64, false, v -> advance(1)));
+        controls.addView(bottom, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
 
         controls.setVisibility(View.GONE);
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-        lp.bottomMargin = dp(24);
-        root.addView(controls, lp);
+        // Just above the photos, so the clock and weather in the corners stay on top of its shading
+        root.addView(controls, 1, new FrameLayout.LayoutParams(-1, -1));
+    }
+
+    /** A round icon button; the main one is solid white, the others frosted. */
+    private android.widget.ImageButton iconButton(int icon, String label, int sizeDp, boolean primary,
+                                                  View.OnClickListener click) {
+        android.widget.ImageButton b = new android.widget.ImageButton(this);
+        b.setImageResource(icon);
+        b.setContentDescription(label);
+        b.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        int pad = dp(sizeDp * (primary ? 0.26f : 0.24f));
+        b.setPadding(pad, pad, pad, pad);
+        if (primary) b.setColorFilter(0xFF111111);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.OVAL);
+        // Dark glass with an outline for the others, so they show on light and dark photos alike
+        bg.setColor(primary ? 0xF2FFFFFF : 0x66000000);
+        if (!primary) bg.setStroke(dp(1.5f), 0x99FFFFFF);
+        b.setBackground(new android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(0x55FFFFFF), bg, null));
+        b.setOnClickListener(v -> {
+            click.onClick(v);
+            if (controls.getVisibility() == View.VISIBLE) showControls();
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(sizeDp), dp(sizeDp));
+        lp.setMargins(dp(8), 0, dp(8), 0);
+        b.setLayoutParams(lp);
+        return b;
     }
 
     private Button pillButton(String label, int color) {
@@ -398,36 +472,37 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
         return b;
     }
 
-    private Button controlButton(String label, View.OnClickListener click) {
-        Button b = pillButton(label, 0x33FFFFFF);
-        b.setOnClickListener(v -> {
-            click.onClick(v);
-            showControls();
-        });
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
-        lp.setMargins(dp(6), 0, dp(6), 0);
-        b.setLayoutParams(lp);
-        return b;
-    }
-
     private void toggleControls() {
-        if (controls.getVisibility() == View.VISIBLE) {
-            controls.setVisibility(View.GONE);
-        } else {
-            showControls();
-        }
+        if (controls.getVisibility() == View.VISIBLE) hideControls();
+        else showControls();
     }
 
     private void showControls() {
+        Slides.Item current = slides.current();
+        String about = current == null ? "" : photoLabel(current, true, true);
+        controlsTitle.setText(about.isEmpty() ? getString(R.string.app_name) : about);
         controlsStatus.setText(statusLine());
-        controls.setVisibility(View.VISIBLE);
+        if (controls.getVisibility() != View.VISIBLE) {
+            controls.setAlpha(0f);
+            controls.setVisibility(View.VISIBLE);
+        }
+        controls.animate().cancel();
+        controls.animate().alpha(1f).setDuration(200).start();
         handler.removeCallbacks(hideControls);
         handler.postDelayed(hideControls, CONTROLS_HIDE_MS);
     }
 
+    private void hideControls() {
+        handler.removeCallbacks(hideControls);
+        if (controls.getVisibility() != View.VISIBLE) return;
+        controls.animate().cancel();
+        controls.animate().alpha(0f).setDuration(250).withEndAction(() -> controls.setVisibility(View.GONE)).start();
+    }
+
     private void togglePause() {
         paused = !paused;
-        playButton.setText(paused ? "Play" : "Pause");
+        playButton.setImageResource(paused ? R.drawable.ic_play : R.drawable.ic_pause);
+        playButton.setContentDescription(paused ? "Play" : "Pause");
         if (player != null) {
             try {
                 if (paused) player.pause();
@@ -766,15 +841,21 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
 
     private void updateCaption(Slides.Item item) {
         String mode = prefs.caption();
+        caption.setText(photoLabel(item, mode.equals("date") || mode.equals("both"),
+                mode.equals("album") || mode.equals("both")));
+    }
+
+    /** The photo's date taken and/or album, e.g. "14 August 2024  ·  Smart Picture Frame". */
+    private String photoLabel(Slides.Item item, boolean date, boolean album) {
         StringBuilder text = new StringBuilder();
-        if ((mode.equals("date") || mode.equals("both")) && item.date > 0) {
+        if (date && item.date > 0) {
             text.append(new SimpleDateFormat("d MMMM yyyy", Locale.getDefault()).format(new Date(item.date)));
         }
-        if ((mode.equals("album") || mode.equals("both")) && item.album != null && !item.album.isEmpty()) {
+        if (album && item.album != null && !item.album.isEmpty()) {
             if (text.length() > 0) text.append("  ·  ");
             text.append(item.album);
         }
-        caption.setText(text);
+        return text.toString();
     }
 
     private void scanLocal() {
@@ -790,7 +871,7 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
             // Ask once per visit; asking from every resume loops when the answer is no
             if (!askedStorage) {
                 askedStorage = true;
-                requestPermissions(new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+                Permissions.request(this, Manifest.permission.READ_EXTERNAL_STORAGE, 1);
             }
             return;
         }
@@ -811,7 +892,7 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
 
     private void updateStatus() {
         if (showing) return;
-        boolean needsSetup = (!prefs.iCloudEnabled() || Albums.enabledIds(this).isEmpty()) && !prefs.localEnabled();
+        boolean needsSetup = needsSetup();
         String message;
         if (!prefs.iCloudEnabled() && !prefs.localEnabled()) {
             message = "No photo sources are on.";
@@ -826,6 +907,22 @@ public final class MainActivity extends Activity implements Sync.Listener, Frame
         splash.animate().cancel();
         splash.setAlpha(1f);
         splash.setVisibility(View.VISIBLE);
+    }
+
+    /** No photo source at all: no album switched on, and local photos off. */
+    private boolean needsSetup() {
+        return (!prefs.iCloudEnabled() || Albums.enabledIds(this).isEmpty()) && !prefs.localEnabled();
+    }
+
+    /**
+     * A frame with nothing set up opens straight into phone setup, once each time the app starts
+     * (so Done leaves it on the splash, whose button opens it again).
+     */
+    private boolean openSetupIfNew() {
+        if (openedSetupThisRun || !needsSetup()) return false;
+        openedSetupThisRun = true;
+        startActivity(new Intent(this, SetupActivity.class).putExtra(SetupActivity.EXTRA_WELCOME, true));
+        return true;
     }
 
     private String statusLine() {

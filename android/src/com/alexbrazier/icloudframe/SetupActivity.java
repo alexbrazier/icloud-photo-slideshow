@@ -25,6 +25,8 @@ import java.io.IOException;
  */
 public final class SetupActivity extends Activity implements SetupServer.Listener {
     private static final long CLOSE_AFTER_MS = 15 * 60 * 1000L;
+    /** Set when a new frame opens here by itself, to greet rather than just show the code. */
+    static final String EXTRA_WELCOME = "welcome";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable close = this::finish;
@@ -69,12 +71,15 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.drawable.logo);
         heading.addView(logo, new LinearLayout.LayoutParams(dp(44), dp(44)));
-        TextView title = text("Set up from your phone", 26);
+        boolean welcome = getIntent().getBooleanExtra(EXTRA_WELCOME, false);
+        TextView title = text(welcome ? "Welcome to iCloud Frame" : "Set up from your phone", 26);
         title.setPadding(dp(14), 0, 0, 0);
         heading.addView(title);
         info.addView(heading);
 
-        hint = text("Scan the code with your phone's camera.\nYour phone needs to be on the same Wi-Fi as the frame.", 16);
+        hint = text((welcome ? "Scan the code with your phone's camera to add your first shared album and choose "
+                + "settings.\n" : "Scan the code with your phone's camera.\n")
+                + "Your phone needs to be on the same Wi-Fi as the frame.", 16);
         hint.setTextColor(0xFFB8C2D9);
         hint.setPadding(0, dp(14), 0, dp(18));
         info.addView(hint);
@@ -95,6 +100,7 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
         buttons.addView(button("Done", 0xFF3B82F6, this::finish));
         info.addView(buttons);
         int align = wide ? Gravity.START : Gravity.CENTER;
+        heading.setGravity(align | Gravity.CENTER_VERTICAL);
         hint.setGravity(align);
         pinText.setGravity(align);
         buttons.setGravity(align);
@@ -170,6 +176,9 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
     @Override
     public void onSaved() {
         Toast.makeText(this, "Settings saved from your phone", Toast.LENGTH_SHORT).show();
+        if (getIntent().getBooleanExtra(EXTRA_WELCOME, false) && !Albums.enabledIds(this).isEmpty()) {
+            hint.setText("Album added. Keep changing settings on your phone, or tap Done to start the slideshow.");
+        }
         handler.removeCallbacks(close);
         handler.postDelayed(close, CLOSE_AFTER_MS);
     }
@@ -202,7 +211,7 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
         b.setMinHeight(dp(52));
         b.setPadding(dp(20), 0, dp(20), 0);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
-        lp.setMargins(0, 0, dp(12), 0);
+        lp.setMargins(dp(6), 0, dp(6), 0);
         b.setLayoutParams(lp);
         b.setOnClickListener(v -> action.run());
         return b;

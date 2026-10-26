@@ -1,15 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <Preference android:key="status" android:title="Status" android:persistent="false" />
-    <Preference android:key="phone_setup" android:title="Set up from your phone"
-        android:summary="Shows a QR code to change these settings in your phone's browser"
-        android:persistent="false" />
+    <PreferenceCategory android:title="Get started">
+        <Preference android:key="status" android:title="Status" android:persistent="false" />
+        <Preference android:key="phone_setup" android:title="Set up from your phone"
+            android:summary="The easiest way: scan a QR code to add albums and change any setting from your phone"
+            android:persistent="false" />
+        <Preference android:key="albums" android:title="Albums" android:persistent="false" />
+        <Preference android:key="wifi" android:title="Wi-Fi"
+            android:summary="Connect the frame to a network, or change it" android:persistent="false" />
+        <Preference android:key="permissions" android:title="Permissions"
+            android:summary="What the frame asks Android for, why, and whether it's allowed"
+            android:persistent="false" />
+    </PreferenceCategory>
 
     <PreferenceCategory android:title="Photos">
         <SwitchPreference android:key="src_icloud" android:title="iCloud shared albums"
             android:defaultValue="true" />
-        <Preference android:key="albums" android:title="Albums" android:persistent="false" />
         <SwitchPreference android:key="src_local" android:title="Photos on the frame, SD card and USB stick"
             android:summary="Also show photos and videos from cards, drives and the frame's Pictures, DCIM and Movies folders"
             android:defaultValue="false" />
@@ -104,6 +111,8 @@
     <PreferenceCategory android:title="Screen schedule">
         <SwitchPreference android:key="night_enabled" android:title="Turn the screen off at night"
             android:defaultValue="false" />
+        <Preference android:key="start_on_boot" android:title="Start by itself"
+            android:persistent="false" />
         <Preference android:key="screen_off_permission" android:title="Allow turning the screen off"
             android:persistent="false" />
         <EditTextPreference android:key="night_off" android:title="Off at" android:defaultValue="22:00"
@@ -113,7 +122,6 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:title="Device">
-        <Preference android:key="wifi" android:title="Wi-Fi" android:persistent="false" />
         <Preference android:key="android_settings" android:title="Android settings"
             android:summary="Press Home or reboot to come back to the frame" android:persistent="false" />
         <Preference android:key="other_home" android:title="Choose Home app"

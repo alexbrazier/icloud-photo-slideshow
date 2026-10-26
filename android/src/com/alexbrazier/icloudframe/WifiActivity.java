@@ -149,7 +149,7 @@ public final class WifiActivity extends Activity {
             // Ask once; asking from every resume loops when the answer is no
             if (!askedLocation) {
                 askedLocation = true;
-                requestPermissions(new String[] {Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
+                Permissions.request(this, Manifest.permission.ACCESS_COARSE_LOCATION, 1);
                 return;
             }
         }

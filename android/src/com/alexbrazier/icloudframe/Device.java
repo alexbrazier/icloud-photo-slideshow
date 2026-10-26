@@ -17,6 +17,44 @@ final class Device {
         return new ComponentName(context, AdminReceiver.class);
     }
 
+    /**
+     * Whether the app may open itself from the background (after a reboot, an update or the
+     * morning alarm). Android 10+ only allows that for the Home app or an app with "Display over
+     * other apps"; Fire tablets never let another app be Home, so they need the latter.
+     */
+    static boolean canStartFromBackground(Context context) {
+        return android.os.Build.VERSION.SDK_INT < 29 || isHome(context)
+                || android.provider.Settings.canDrawOverlays(context);
+    }
+
+    static boolean isHome(Context context) {
+        Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
+        android.content.pm.ResolveInfo info = context.getPackageManager()
+                .resolveActivity(home, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY);
+        return info != null && info.activityInfo != null
+                && context.getPackageName().equals(info.activityInfo.packageName);
+    }
+
+    /** Asks Android to make this app a device admin (just for locking the screen). */
+    static void requestAdmin(Context context) {
+        context.startActivity(new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
+                .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, admin(context))
+                .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+                        "Lets the frame turn its screen off at night and back on in the morning."));
+    }
+
+    /** Opens Android's "Display over other apps" screen for this app. */
+    static void requestBackgroundStart(Context context) {
+        Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                android.net.Uri.parse("package:" + context.getPackageName()));
+        try {
+            context.startActivity(intent);
+        } catch (RuntimeException e) {
+            // Some builds only have the list of apps, without going straight to this one
+            context.startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION));
+        }
+    }
+
     static boolean isOwner(Context context) {
         DevicePolicyManager dpm = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
         return dpm != null && dpm.isDeviceOwnerApp(context.getPackageName());

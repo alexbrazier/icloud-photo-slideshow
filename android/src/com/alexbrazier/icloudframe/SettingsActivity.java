@@ -140,6 +140,10 @@ public final class SettingsActivity extends Activity {
             setSummary("dim_end", prefs.dimEnd() < 0 ? "Not a valid time" : text("dim_end", ""));
             setSummary("check_update", "Installed version " + Updater.currentVersion(getActivity())
                     + (Device.isOwner(getActivity()) ? " · installs silently (device owner)" : ""));
+            setSummary("start_on_boot", Device.canStartFromBackground(getActivity())
+                    ? "Allowed: the slideshow opens after a restart and wakes for the morning"
+                    : "Not allowed yet: tap and turn on Display over other apps, so the slideshow opens after "
+                            + "a restart and comes back for the morning");
             setSummary("release_owner", Device.isOwner(getActivity())
                     ? "This app is the device owner. Tap to give that up, e.g. before uninstalling it"
                     : "Not the device owner");
@@ -185,13 +189,14 @@ public final class SettingsActivity extends Activity {
                 case "phone_setup":
                     startActivity(new Intent(getActivity(), SetupActivity.class));
                     return true;
+                case "permissions":
+                    startActivity(new Intent(getActivity(), PermissionsActivity.class));
+                    return true;
+                case "start_on_boot":
+                    if (!Device.canStartFromBackground(getActivity())) Device.requestBackgroundStart(getActivity());
+                    return true;
                 case "screen_off_permission":
-                    if (!Schedule.canTurnOff(getActivity())) {
-                        startActivity(new Intent(android.app.admin.DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
-                                .putExtra(android.app.admin.DevicePolicyManager.EXTRA_DEVICE_ADMIN, Device.admin(getActivity()))
-                                .putExtra(android.app.admin.DevicePolicyManager.EXTRA_ADD_EXPLANATION,
-                                        "Lets the frame turn its screen off at night and back on in the morning."));
-                    }
+                    if (!Schedule.canTurnOff(getActivity())) Device.requestAdmin(getActivity());
                     return true;
                 case "wifi":
                     startActivity(new Intent(getActivity(), WifiActivity.class));

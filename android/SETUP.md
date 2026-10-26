@@ -125,6 +125,30 @@ adb shell am broadcast -n com.alexbrazier.icloudframe/.ConfigReceiver \
 
 It prints what was saved or rejected. The keys are in `src/.../SettingsSchema.java`.
 
+### Amazon Fire tablets
+
+Fire tablets work, with a few differences (tested on a Fire HD 10, `KFTUWI`, Fire OS 8):
+
+- **Skip steps 3 and 4.** Fire OS never lets another app be the Home screen, and device owner is
+  impossible because Amazon's Parental Controls already hold that role.
+- **Start by itself:** when the slideshow first opens it asks to turn on **Display over other
+  apps**; tap iCloud Frame in the list that opens. Without it, Android won't let the app open
+  itself after a restart or come back for the morning. It's also under Settings → Screen
+  schedule → Start by itself.
+- **Night schedule:** Settings → Screen schedule → **Allow turning the screen off**, then
+  **Activate**.
+- **Lock screen (Fire OS 8):** Fire OS 8 won't let apps dismiss or show over its lock screen, so
+  a screen switched off at night would wake onto it. Fire OS has no setting for this, but adb
+  does, and it needs a reboot to apply:
+
+  ```bash
+  adb shell locksettings set-disabled true
+  adb reboot
+  ```
+
+- **Updates** ask for one confirmation tap each time (no device owner), and the first one asks
+  to allow installing apps from iCloud Frame.
+
 ## 6. Wi-Fi and the night schedule
 
 - **Wi-Fi:** Settings → Device → **Wi-Fi** in the app (frames often have no way back to Android's
