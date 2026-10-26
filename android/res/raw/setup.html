@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#1d4ed8">
+<title>Frame setup</title>
+<style>
+  :root {
+    --bg: #f2f2f7; --card: #fff; --text: #1c1c1e; --muted: #6e6e73; --line: #e5e5ea; --field: #f2f2f7;
+    --accent: #2563eb; --error: #d70015; --ok: #248a3d; --off: #d1d1d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --muted: #98989f; --line: #38383a; --field: #2c2c2e;
+      --accent: #3b82f6; --error: #ff453a; --ok: #30d158; --off: #39393d; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); -webkit-text-size-adjust: 100%; }
+  main { max-width: 560px; margin: 0 auto; padding: 16px 16px 72px; }
+  header { display: flex; gap: 14px; align-items: center; margin: 8px 4px 20px; }
+  header svg { width: 52px; height: 52px; flex: none; }
+  h1 { font-size: 24px; margin: 0; }
+  #status { color: var(--muted); font-size: 14px; white-space: pre-line; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600;
+    margin: 26px 0 8px 16px; }
+  .card { background: var(--card); border-radius: 12px; overflow: hidden; }
+  .row { padding: 11px 16px; display: flex; gap: 12px; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; min-height: 50px; position: relative; }
+  .row + .row::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: 1px solid var(--line); }
+  .row label { flex: 1 1 150px; }
+  .row select, .row input[type=text], .row input[type=time], .row input[type=search] {
+    font: inherit; padding: 8px 10px; border-radius: 9px; border: 0; background: var(--field); color: var(--text);
+    min-width: 0; max-width: 100%; }
+  .row select { flex: 0 1 auto; margin-left: auto; }
+  .row input[type=text], .row input[type=search] { flex: 1 1 200px; }
+  input[type=color] { width: 48px; height: 34px; border: 0; padding: 0; background: none; border-radius: 8px; }
+  .hidden { display: none !important; }
+
+  /* iOS-style switches */
+  input.switch { appearance: none; -webkit-appearance: none; flex: none; width: 51px; height: 31px; margin: 0;
+    border-radius: 16px; background: var(--off); position: relative; transition: background .2s; cursor: pointer; }
+  input.switch::before { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px;
+    border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.25); transition: transform .2s; }
+  input.switch:checked { background: var(--ok); }
+  input.switch:checked::before { transform: translateX(20px); }
+
+  button { font: inherit; padding: 8px 14px; border-radius: 9px; border: 0; background: var(--field);
+    color: var(--accent); cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; font-weight: 600; }
+  button.link { display: block; background: none; padding: 2px 0; font-size: 13px; color: var(--error); }
+
+  .album { display: flex; gap: 12px; align-items: center; flex-wrap: nowrap; }
+  .cover { width: 52px; height: 52px; border-radius: 8px; object-fit: cover; background: var(--field); flex: none; }
+  .album .info { flex: 1; min-width: 0; }
+  .album .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .err { color: var(--error); font-size: 13px; }
+  .add { display: flex; gap: 8px; width: 100%; }
+  .note { color: var(--muted); font-size: 13px; padding: 6px 16px 0; margin: 0; }
+  .results { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+  .results:empty { display: none; }
+  .results button { text-align: left; color: var(--text); }
+  details { width: 100%; }
+  summary { color: var(--muted); font-size: 14px; cursor: pointer; }
+  details .row { padding: 10px 0 0; min-height: 0; }
+  details .row::before { display: none; }
+
+  #toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
+    background: rgba(28,28,30,.92); color: #fff; padding: 10px 18px; border-radius: 20px; font-size: 15px;
+    opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; max-width: calc(100% - 32px);
+    white-space: pre-line; text-align: center; }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #toast.error { background: var(--error); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <svg viewBox="0 0 108 108" aria-hidden="true">
+      <path fill="#1D4ED8" d="M24,0 H84 A24,24 0 0,1 108,24 V84 A24,24 0 0,1 84,108 H24 A24,24 0 0,1 0,84 V24 A24,24 0 0,1 24,0 Z"/>
+      <path fill="#3B82F6" fill-opacity="0.7" d="M24,0 H84 A24,24 0 0,1 108,24 V40 C80,62 40,30 0,58 V24 A24,24 0 0,1 24,0 Z"/>
+      <g transform="translate(57 57) scale(1.05) translate(-54 -54)">
+        <path fill="#93C5FD" d="M32,36 H76 V73 H32 Z"/>
+        <path fill="#FDE68A" d="M60.5,45 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0 Z"/>
+        <path fill="#FFFFFF" d="M32,73 L46,54 L54,63 L61,56 L76,73 Z"/>
+        <path fill="none" stroke="#FFFFFF" stroke-width="4" d="M35,34 H73 A5,5 0 0,1 78,39 V69 A5,5 0 0,1 73,74 H35 A5,5 0 0,1 30,69 V39 A5,5 0 0,1 35,34 Z"/>
+        <path fill="#FFFFFF" stroke="#1D4ED8" stroke-width="3" d="M28,44 H44 A5,5 0 0,0 44.6,34.04 A7.5,7.5 0 0,0 30.3,31.84 A6.2,6.2 0 0,0 28,44 Z"/>
+      </g>
+    </svg>
+    <div>
+      <h1>Frame setup</h1>
+      <div id="status">Loading…</div>
+    </div>
+  </header>
+
+  <h2>Albums</h2>
+  <div class="card" id="albums"></div>
+  <p class="note">Switch on the albums to show; several can be on at once. Albums that are off keep their saved photos.</p>
+
+  <div id="form"></div>
+  <p class="note" style="margin-top:24px">Changes save as you make them. This page only works while the setup screen is showing on the frame.</p>
+</main>
+<div id="toast" role="status"></div>
+<script>
+"use strict";
+const form = document.getElementById("form");
+let loaded = {};
+let toastTimer;
+
+// Settings that only matter when another is set a certain way
+const SHOW_IF = {
+  bg_color: ["background", "custom"],
+  caption_pos: ["caption", v => v !== "none"],
+  dim_start: ["dim_enabled", true], dim_end: ["dim_enabled", true], dim_level: ["dim_enabled", true],
+  night_off: ["night_enabled", true], night_on: ["night_enabled", true],
+  weather_place: ["weather_show", true], weather_units: ["weather_show", true], weather_pos: ["weather_show", true],
+  clock_24h: ["clock_show", true], clock_date: ["clock_show", true], clock_pos: ["clock_show", true], clock_size: ["clock_show", true],
+  video_sound: ["videos", true],
+};
+// Shown inside the location row instead of as rows of their own
+const NESTED = ["weather_lat", "weather_lon"];
+
+function el(tag, attrs, children) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "text") e.textContent = v; else e.setAttribute(k, v);
+  }
+  for (const c of children || []) if (c) e.appendChild(c);
+  return e;
+}
+
+function toast(text, error) {
+  const t = document.getElementById("toast");
+  t.textContent = text;
+  t.className = "show" + (error ? " error" : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = error ? "error" : ""; }, error ? 4000 : 1500);
+}
+
+function renderAlbums(albums) {
+  const box = document.getElementById("albums");
+  box.textContent = "";
+  for (const a of albums) {
+    const on = el("input", { type: "checkbox", class: "switch", "aria-label": "Show " + (a.name || "this album") });
+    on.checked = a.on;
+    on.addEventListener("change", () => albumCall({ id: a.id, on: on.checked }));
+    const cover = el("img", { class: "cover", alt: "" });
+    if (a.saved) cover.src = "api/cover/" + encodeURIComponent(a.id) + "?n=" + a.saved;
+    cover.addEventListener("error", () => cover.removeAttribute("src"));
+    const remove = el("button", { type: "button", class: "link", text: "Remove" });
+    remove.addEventListener("click", () => {
+      if (confirm("Remove " + (a.name || "this album") + " and its saved photos?")) albumCall({ remove: a.id });
+    });
+    const info = el("div", { class: "info" }, [
+      el("div", { class: "name", text: a.name || "Album " + a.id.slice(0, 6) + "…" }),
+      el("div", { class: "meta", text: a.count ? a.saved + " of " + a.count + " saved" : "Not loaded yet" }),
+      a.error ? el("div", { class: "err", text: a.error }) : null,
+      remove,
+    ]);
+    box.appendChild(el("div", { class: "row album" }, [cover, info, on]));
+  }
+  const link = el("input", { type: "text", placeholder: "Paste a shared album link", spellcheck: "false",
+    autocapitalize: "off", autocomplete: "off", "aria-label": "Shared album link" });
+  const add = el("button", { type: "button", class: "primary", text: "Add" });
+  const addLink = () => link.value.trim() && albumCall({ add: link.value.trim() });
+  add.addEventListener("click", addLink);
+  link.addEventListener("keydown", e => { if (e.key === "Enter") addLink(); });
+  // Pasting a link is the whole job, so add it straight away
+  link.addEventListener("paste", () => setTimeout(() => { if (/sharedalbum|shared\/album|^[A-Za-z0-9_-]{8,}$/.test(link.value.trim())) addLink(); }, 0));
+  const help = el("details", {}, [
+    el("summary", { text: "Where's the link on an iPhone?" }),
+    el("p", { class: "meta", text: "In Photos, open Albums, then the shared album. Tap the People button (the person icon), " +
+      "turn on Public Website, then tap Share Link and Copy. Come back here and paste it into the box above." }),
+  ]);
+  box.appendChild(el("div", { class: "row" }, [el("div", { class: "add" }, [link, add]), help]));
+  // Open the help straight away for the first album
+  help.open = !albums.length;
+  const sync = el("button", { type: "button", text: "Check albums for new photos now" });
+  sync.addEventListener("click", async () => {
+    try {
+      update(await call("POST", "api/sync"));
+      toast("Checking for new photos");
+    } catch (e) {
+      toast(e.message, true);
+    }
+  });
+  box.appendChild(el("div", { class: "row" }, [sync]));
+}
+
+async function albumCall(body) {
+  try {
+    update(await call("POST", "api/albums", body));
+    toast("Saved");
+  } catch (e) {
+    toast(e.message, true);
+    load();
+  }
+}
+
+function inputFor(f) {
+  const id = "f_" + f.key;
+  let input;
+  if (f.type === "bool") {
+    input = el("input", { type: "checkbox", class: "switch", id });
+    input.checked = f.value;
+  } else if (f.type === "choice") {
+    input = el("select", { id });
+    for (const c of f.choices) input.appendChild(el("option", { value: c.value, text: c.label }));
+    input.value = f.value;
+  } else if (f.type === "time") {
+    input = el("input", { type: "time", id, required: "" });
+    input.value = /^\d:/.test(f.value) ? "0" + f.value : f.value;
+  } else if (f.type === "color") {
+    input = el("input", { type: "color", id });
+    input.value = f.value.toLowerCase();
+  } else {
+    input = el("input", { type: "text", id, placeholder: f.hint || "", spellcheck: "false", autocapitalize: "off", autocomplete: "off" });
+    input.value = f.value;
+  }
+  input.dataset.key = f.key;
+  input.addEventListener("change", () => save({ [f.key]: valueOf(input) }));
+  return input;
+}
+
+function valueOf(input) {
+  return input.type === "checkbox" ? input.checked : input.value.trim();
+}
+
+function render(state) {
+  form.textContent = "";
+  const byKey = {};
+  for (const f of state.fields) byKey[f.key] = f;
+  let card = null, section = null;
+  for (const f of state.fields) {
+    if (NESTED.includes(f.key)) continue;
+    if (f.section !== section) {
+      section = f.section;
+      form.appendChild(el("h2", { text: section }));
+      card = el("div", { class: "card" });
+      form.appendChild(card);
+    }
+    const row = f.key === "weather_place"
+      ? placeRow(f, byKey.weather_lat, byKey.weather_lon)
+      : el("div", { class: "row" }, [el("label", { for: "f_" + f.key, text: f.title }), inputFor(f)]);
+    row.dataset.row = f.key;
+    card.appendChild(row);
+  }
+  update(state);
+}
+
+/** Status, albums and current values, without rebuilding the form (so focus isn't lost). */
+function update(state) {
+  document.getElementById("status").textContent = state.status + "\nApp version " + state.version;
+  renderAlbums(state.albums || []);
+  loaded = {};
+  for (const f of state.fields) {
+    loaded[f.key] = f.value;
+    const input = document.getElementById("f_" + f.key);
+    if (!input || input === document.activeElement) continue;
+    if (input.type === "checkbox") input.checked = f.value;
+    else if (input.type === "time") input.value = /^\d:/.test(f.value) ? "0" + f.value : f.value;
+    else if (input.type === "color") input.value = f.value.toLowerCase();
+    else input.value = f.value;
+  }
+  applyVisibility();
+}
+
+function applyVisibility() {
+  for (const [key, [on, want]] of Object.entries(SHOW_IF)) {
+    const row = form.querySelector('[data-row="' + key + '"]');
+    if (!row) continue;
+    const v = loaded[on];
+    const show = typeof want === "function" ? want(v) : v === want;
+    row.classList.toggle("hidden", !show);
+  }
+}
+
+// A town search (Open-Meteo's free geocoding, from the phone) that fills in the coordinates
+function placeRow(f, lat, lon) {
+  const query = el("input", { type: "search", id: "f_weather_place", placeholder: "Find a town or city",
+    "aria-label": "Weather location", autocomplete: "off" });
+  query.value = f.value;
+  query.dataset.key = f.key;
+  const go = el("button", { type: "button", text: "Find" });
+  const results = el("div", { class: "results" });
+  const search = async () => {
+    if (!query.value.trim()) return;
+    results.textContent = "";
+    results.appendChild(el("div", { class: "meta", text: "Searching…" }));
+    try {
+      const r = await fetch("https://geocoding-api.open-meteo.com/v1/search?count=5&name=" + encodeURIComponent(query.value.trim()));
+      const data = await r.json();
+      results.textContent = "";
+      for (const p of data.results || []) {
+        const label = [p.name, p.admin1, p.country].filter((v, i, all) => v && all.indexOf(v) === i).join(", ");
+        const b = el("button", { type: "button", text: label });
+        b.addEventListener("click", async () => {
+          results.textContent = "";
+          query.value = label;
+          await save({ weather_place: label, weather_lat: p.latitude.toFixed(4), weather_lon: p.longitude.toFixed(4) });
+        });
+        results.appendChild(b);
+      }
+      if (!results.childNodes.length) results.appendChild(el("div", { class: "meta", text: "No matches" }));
+    } catch (e) {
+      results.textContent = "";
+      results.appendChild(el("div", { class: "meta", text: "Search needs the internet. You can type the coordinates instead." }));
+    }
+  };
+  go.addEventListener("click", search);
+  query.addEventListener("keydown", e => { if (e.key === "Enter") search(); });
+
+  const coords = el("details", {}, [
+    el("summary", { text: "Coordinates" }),
+    el("div", { class: "row" }, [el("label", { for: "f_weather_lat", text: lat.title }), inputFor(lat)]),
+    el("div", { class: "row" }, [el("label", { for: "f_weather_lon", text: lon.title }), inputFor(lon)]),
+  ]);
+  return el("div", { class: "row" }, [
+    el("label", { for: "f_weather_place", text: f.title, style: "flex-basis:100%" }),
+    el("div", { class: "add" }, [query, go]),
+    results,
+    coords,
+  ]);
+}
+
+async function call(method, path, body) {
+  const r = await fetch(path, {
+    method, headers: body ? { "Content-Type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : undefined, cache: "no-store",
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || "The frame returned an error (" + r.status + ")");
+  return data;
+}
+
+async function save(changes) {
+  try {
+    update(await call("POST", "api/settings", changes));
+    toast("Saved");
+  } catch (e) {
+    toast(e.message, true);
+    // Put back what the frame actually has
+    for (const k of Object.keys(changes)) document.getElementById("f_" + k)?.blur();
+    load();
+  }
+}
+
+async function load() {
+  try {
+    const state = await call("GET", "api/settings");
+    if (form.childNodes.length) update(state); else render(state);
+  } catch (e) {
+    document.getElementById("status").textContent = "Couldn't reach the frame. Is the setup screen still showing?";
+  }
+}
+
+load();
+</script>
+</body>
+</html>

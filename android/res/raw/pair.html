@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Frame setup</title>
+<style>
+  :root { --bg: #f2f2f7; --card: #fff; --text: #1c1c1e; --muted: #6e6e73; --field: #f2f2f7; --accent: #2563eb; --error: #d70015; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #000; --card: #1c1c1e; --text: #f2f2f7; --muted: #98989f; --field: #2c2c2e; --accent: #3b82f6; --error: #ff453a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px;
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  form { background: var(--card); border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 360px; text-align: center; }
+  svg { width: 64px; height: 64px; }
+  h1 { font-size: 22px; margin: 12px 0 4px; }
+  p { color: var(--muted); margin: 0 0 20px; }
+  input { font: 600 28px/1 ui-monospace, Menlo, monospace; letter-spacing: .3em; text-align: center; width: 100%;
+    padding: 14px 8px; border-radius: 12px; border: 0; background: var(--field); color: var(--text); }
+  button { font: inherit; font-weight: 600; font-size: 17px; width: 100%; margin-top: 14px; padding: 14px; border: 0;
+    border-radius: 12px; background: var(--accent); color: #fff; }
+  #error { color: var(--error); min-height: 1.4em; margin: 12px 0 0; }
+</style>
+</head>
+<body>
+<form id="pair">
+  <svg viewBox="0 0 108 108" aria-hidden="true">
+    <path fill="#1D4ED8" d="M24,0 H84 A24,24 0 0,1 108,24 V84 A24,24 0 0,1 84,108 H24 A24,24 0 0,1 0,84 V24 A24,24 0 0,1 24,0 Z"/>
+    <path fill="#3B82F6" fill-opacity="0.7" d="M24,0 H84 A24,24 0 0,1 108,24 V40 C80,62 40,30 0,58 V24 A24,24 0 0,1 24,0 Z"/>
+    <g transform="translate(57 57) scale(1.05) translate(-54 -54)">
+      <path fill="#93C5FD" d="M32,36 H76 V73 H32 Z"/>
+      <path fill="#FDE68A" d="M60.5,45 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0 Z"/>
+      <path fill="#FFFFFF" d="M32,73 L46,54 L54,63 L61,56 L76,73 Z"/>
+      <path fill="none" stroke="#FFFFFF" stroke-width="4" d="M35,34 H73 A5,5 0 0,1 78,39 V69 A5,5 0 0,1 73,74 H35 A5,5 0 0,1 30,69 V39 A5,5 0 0,1 35,34 Z"/>
+      <path fill="#FFFFFF" stroke="#1D4ED8" stroke-width="3" d="M28,44 H44 A5,5 0 0,0 44.6,34.04 A7.5,7.5 0 0,0 30.3,31.84 A6.2,6.2 0 0,0 28,44 Z"/>
+    </g>
+  </svg>
+  <h1>Frame setup</h1>
+  <p>Enter the PIN shown on the frame.</p>
+  <input id="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000 000" aria-label="PIN" autofocus>
+  <button type="submit">Continue</button>
+  <div id="error" role="alert"></div>
+</form>
+<script>
+"use strict";
+document.getElementById("pair").addEventListener("submit", async e => {
+  e.preventDefault();
+  const error = document.getElementById("error");
+  error.textContent = "";
+  try {
+    const r = await fetch("pair", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: document.getElementById("pin").value }), cache: "no-store" });
+    const data = await r.json();
+    if (r.ok && /^\/[0-9a-f]{32}\/$/.test(data.url)) location.replace(data.url);
+    else error.textContent = data.error || "That didn't work. Try again.";
+  } catch (err) {
+    error.textContent = "Couldn't reach the frame. Is the setup screen still showing?";
+  }
+});
+</script>
+</body>
+</html>

@@ -1,7 +1,15 @@
+import {
+  fetchCloudKitPhotos,
+  isCloudKitAlbum,
+  signCloudKitPhoto,
+} from "./cloudkit.ts";
+
 export type Derivative = {
   checksum: string;
   width: number;
   height: number;
+  // The CloudKit record field it's in (iOS 27 albums only)
+  field?: string;
 };
 
 export type Photo = {
@@ -49,10 +57,13 @@ const photoListsPending = new Map<string, Promise<Photo[]>>();
 const signedUrls = new Map<string, SignedUrl>();
 const signingPending = new Map<string, Promise<void>>();
 
-// Accepts a bare album ID or a share link
+// Accepts a bare album ID or a share link: older albums'
 // (https://www.icloud.com/sharedalbum/#B0abc123, sometimes with ";<photo>")
+// or iOS 27's (https://photos.icloud.com/shared/album/0AbCdEfGhIjKlMnOpQrStUvWx/)
 export function parseAlbumId(raw: string): string | null {
   let id = raw.trim();
+  const shared = /\/shared\/album\/([A-Za-z0-9_-]+)/.exec(id);
+  if (shared) return ALBUM_ID_PATTERN.test(shared[1]) ? shared[1] : null;
   const hash = id.lastIndexOf("#");
   if (hash >= 0) id = id.slice(hash + 1);
   const semicolon = id.indexOf(";");
@@ -90,6 +101,7 @@ async function fetchApple(
 }
 
 async function fetchPhotoList(albumId: string): Promise<Photo[]> {
+  if (isCloudKitAlbum(albumId)) return fetchCloudKitPhotos(albumId);
   const webstream = (await fetchApple(albumId, "webstream", {
     streamCtag: null,
   })) as Webstream;
@@ -135,7 +147,11 @@ export function getPhotos(albumId: string): Promise<Photo[]> {
           for (const p of photos) {
             for (const d of p.derivatives) byChecksum.set(d.checksum, p);
           }
-          photoLists.set(albumId, { photos, byChecksum, timestamp: Date.now() });
+          photoLists.set(albumId, {
+            photos,
+            byChecksum,
+            timestamp: Date.now(),
+          });
           return photos;
         })
         .finally(() => photoListsPending.delete(albumId));
@@ -177,15 +193,25 @@ export function pickDerivative(
 // Signs every derivative of one photo. Done per photo, just before it's
 // needed, rather than for the whole album, so URLs are always fresh.
 async function signPhoto(albumId: string, photo: Photo) {
-  const res = (await fetchApple(albumId, "webasseturls", {
-    photoGuids: [photo.photoGuid],
-  })) as AssetUrls;
-
   // Drop lapsed URLs so the cache only holds photos recently shown
   const now = Date.now();
   for (const [checksum, signed] of signedUrls) {
     if (signed.expiry < now) signedUrls.delete(checksum);
   }
+
+  if (isCloudKitAlbum(albumId)) {
+    for (const { checksum, url, expiry } of await signCloudKitPhoto(
+      albumId,
+      photo
+    )) {
+      signedUrls.set(checksum, { url, expiry });
+    }
+    return;
+  }
+
+  const res = (await fetchApple(albumId, "webasseturls", {
+    photoGuids: [photo.photoGuid],
+  })) as AssetUrls;
 
   const items = res.items ?? {};
   for (const checksum of Object.keys(items)) {

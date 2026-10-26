@@ -1,0 +1,83 @@
+# Builds and signs the Android frame app when a tag like android-v2 is pushed, and publishes it
+# as a GitHub release, which frames pick up in their daily update check.
+#
+# Needs two repository secrets (Settings → Secrets and variables → Actions):
+#   ANDROID_KEYSTORE_BASE64    base64 of ~/.android/icloud-frame.keystore
+#   ANDROID_KEYSTORE_PASSWORD  contents of ~/.android/icloud-frame.keystore.password
+name: Android release
+
+on:
+  push:
+    tags:
+      - "android-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Only one release at a time, and never cancelled halfway
+    concurrency:
+      group: android-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Earlier tags, for the release notes
+          fetch-depth: 0
+
+      - name: Read the version from the tag
+        id: version
+        run: |
+          code="${GITHUB_REF_NAME#android-v}"
+          if ! [[ "$code" =~ ^[1-9][0-9]{0,8}$ ]]; then
+            echo "Tag $GITHUB_REF_NAME should be android-v<number>, e.g. android-v2" >&2
+            exit 1
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-34 build-tools;34.0.0"
+
+      - name: Restore the signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "Add the ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD secrets first" >&2
+            exit 1
+          fi
+          umask 077
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/icloud-frame.keystore"
+          printf '%s' "$KEYSTORE_PASSWORD" > "$RUNNER_TEMP/icloud-frame.keystore.password"
+
+      - name: Build and sign
+        env:
+          KEYSTORE: ${{ runner.temp }}/icloud-frame.keystore
+          VERSION_CODE: ${{ steps.version.outputs.code }}
+          VERSION_NAME: ${{ steps.version.outputs.code }}
+        run: android/build.sh
+
+      - name: Remove the signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/icloud-frame.keystore" "$RUNNER_TEMP/icloud-frame.keystore.password"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODE: ${{ steps.version.outputs.code }}
+        run: |
+          cp android/build/icloud-frame.apk "icloud-frame-$CODE.apk"
+          sha256sum "icloud-frame-$CODE.apk" > "icloud-frame-$CODE.apk.sha256"
+          # Notes cover the changes since the previous Android release
+          previous=$(git tag --list 'android-v*' --sort=-v:refname | grep -vx "$GITHUB_REF_NAME" | head -1 || true)
+          gh release create "$GITHUB_REF_NAME" "icloud-frame-$CODE.apk" "icloud-frame-$CODE.apk.sha256" \
+            --title "Android frame app $CODE" --generate-notes ${previous:+--notes-start-tag "$previous"}

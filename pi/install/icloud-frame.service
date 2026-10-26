@@ -1,0 +1,19 @@
+[Unit]
+Description=iCloud photo frame
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+EnvironmentFile=/etc/icloud-frame.conf
+ExecStart=/usr/local/bin/icloud-frame
+Restart=always
+RestartSec=10
+# Root is needed for /dev/fb0 and to switch tty1 to graphics mode; keep the
+# rest of the system read-only to it
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

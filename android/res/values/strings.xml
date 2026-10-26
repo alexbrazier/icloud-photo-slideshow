@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">iCloud Frame</string>
+    <string name="settings">Frame settings</string>
+    <string name="wifi">Wi-Fi</string>
+</resources>

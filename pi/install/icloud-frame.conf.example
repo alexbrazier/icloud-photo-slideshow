@@ -1,0 +1,17 @@
+# iCloud photo frame settings, read by the icloud-frame service.
+# Apply changes with: sudo systemctl restart icloud-frame
+
+# Shared album ID, or the whole share link (https://www.icloud.com/sharedalbum/#B0abc123)
+ICLOUD_ALBUM_ID=
+
+# Time per photo: seconds, or a duration like 5m
+FRAME_INTERVAL=60
+
+# Crossfade length, 0 for a hard cut
+FRAME_FADE=1
+
+# all, landscape or portrait
+FRAME_ORIENTATION=all
+
+# Turn the picture clockwise for a rotated panel: 0, 90, 180 or 270
+FRAME_ROTATE=0

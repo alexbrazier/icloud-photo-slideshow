@@ -1,0 +1,38 @@
+# Builds the Raspberry Pi frame binary when a tag like pi-v1 is pushed, and publishes it with
+# the install files as a GitHub release (see pi/README.md).
+name: Pi release
+
+on:
+  push:
+    tags:
+      - "pi-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pi
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: pi/go.mod
+          cache-dependency-path: pi/go.sum
+
+      - run: make test
+
+      - run: make dist
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tar -czf "icloud-frame-$GITHUB_REF_NAME.tar.gz" -C dist .
+          sha256sum "icloud-frame-$GITHUB_REF_NAME.tar.gz" > "icloud-frame-$GITHUB_REF_NAME.tar.gz.sha256"
+          gh release create "$GITHUB_REF_NAME" "icloud-frame-$GITHUB_REF_NAME.tar.gz" \
+            "icloud-frame-$GITHUB_REF_NAME.tar.gz.sha256" --title "Raspberry Pi frame ${GITHUB_REF_NAME#pi-v}" --generate-notes

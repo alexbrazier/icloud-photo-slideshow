@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <Preference android:key="status" android:title="Status" android:persistent="false" />
+    <Preference android:key="phone_setup" android:title="Set up from your phone"
+        android:summary="Shows a QR code to change these settings in your phone's browser"
+        android:persistent="false" />
+
+    <PreferenceCategory android:title="Photos">
+        <SwitchPreference android:key="src_icloud" android:title="iCloud shared albums"
+            android:defaultValue="true" />
+        <Preference android:key="albums" android:title="Albums" android:persistent="false" />
+        <SwitchPreference android:key="src_local" android:title="Photos on the frame, SD card and USB stick"
+            android:summary="Also show photos and videos from cards, drives and the frame's Pictures, DCIM and Movies folders"
+            android:defaultValue="false" />
+        <SwitchPreference android:key="videos" android:title="Include videos" android:defaultValue="true"
+            android:summary="Plays each video once, then moves on. Videos use more storage." />
+        <SwitchPreference android:key="video_sound" android:title="Play video sound" android:defaultValue="false" />
+        <ListPreference android:key="interval" android:title="Time per photo"
+            android:entries="@array/interval_names" android:entryValues="@array/interval_values"
+            android:defaultValue="60" android:summary="%s" />
+        <ListPreference android:key="fade" android:title="Transition"
+            android:entries="@array/fade_names" android:entryValues="@array/fade_values"
+            android:defaultValue="1000" android:summary="%s" />
+        <ListPreference android:key="order" android:title="Order"
+            android:entries="@array/order_names" android:entryValues="@array/order_values"
+            android:defaultValue="shuffle" android:summary="%s" />
+        <ListPreference android:key="orientation" android:title="Show"
+            android:entries="@array/orientation_names" android:entryValues="@array/orientation_values"
+            android:defaultValue="all" android:summary="%s" />
+        <ListPreference android:key="cache_limit" android:title="Offline storage limit"
+            android:entries="@array/cache_names" android:entryValues="@array/cache_values"
+            android:defaultValue="2048" android:summary="%s" />
+        <Preference android:key="sync_now" android:title="Check album now" android:persistent="false" />
+        <Preference android:key="clear_cache" android:title="Delete saved photos"
+            android:summary="Downloads them again from the album" android:persistent="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Display">
+        <ListPreference android:key="fit_same" android:title="Photos the same shape as the screen"
+            android:entries="@array/fit_same_names" android:entryValues="@array/fit_same_values"
+            android:defaultValue="near" android:summary="%s" />
+        <ListPreference android:key="fit_other" android:title="Photos the other shape"
+            android:entries="@array/fit_other_names" android:entryValues="@array/fit_other_values"
+            android:defaultValue="fit" android:summary="%s" />
+        <ListPreference android:key="background" android:title="Behind photos that don't fill the screen"
+            android:entries="@array/background_names" android:entryValues="@array/background_values"
+            android:defaultValue="blur" android:summary="%s" />
+        <EditTextPreference android:key="bg_color" android:title="Custom colour" android:defaultValue="#202020"
+            android:dialogMessage="A hex colour, e.g. #202020 or #F5F0E6" android:singleLine="true" />
+        <ListPreference android:key="caption" android:title="Show on each photo"
+            android:entries="@array/caption_names" android:entryValues="@array/caption_values"
+            android:defaultValue="none" android:summary="%s" />
+        <ListPreference android:key="caption_pos" android:title="Caption position"
+            android:entries="@array/pos_names" android:entryValues="@array/pos_values"
+            android:defaultValue="top_left" android:summary="%s" />
+        <ListPreference android:key="brightness" android:title="Brightness"
+            android:entries="@array/brightness_names" android:entryValues="@array/brightness_values"
+            android:defaultValue="system" android:summary="%s" />
+        <SwitchPreference android:key="dim_enabled" android:title="Dim in the evening"
+            android:defaultValue="false" />
+        <EditTextPreference android:key="dim_start" android:title="Dim from" android:defaultValue="20:00"
+            android:dialogMessage="24-hour time, e.g. 20:00" android:singleLine="true" />
+        <EditTextPreference android:key="dim_end" android:title="Until" android:defaultValue="07:00"
+            android:dialogMessage="24-hour time, e.g. 07:00" android:singleLine="true" />
+        <ListPreference android:key="dim_level" android:title="Dimmed brightness"
+            android:entries="@array/dim_names" android:entryValues="@array/dim_values"
+            android:defaultValue="25" android:summary="%s" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Clock">
+        <SwitchPreference android:key="clock_show" android:title="Show clock" android:defaultValue="true" />
+        <SwitchPreference android:key="clock_24h" android:title="24-hour time" android:defaultValue="true" />
+        <SwitchPreference android:key="clock_date" android:title="Show date" android:defaultValue="true" />
+        <ListPreference android:key="clock_pos" android:title="Position"
+            android:entries="@array/pos_names" android:entryValues="@array/pos_values"
+            android:defaultValue="bottom_left" android:summary="%s" />
+        <ListPreference android:key="clock_size" android:title="Size"
+            android:entries="@array/size_names" android:entryValues="@array/size_values"
+            android:defaultValue="medium" android:summary="%s" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Weather">
+        <SwitchPreference android:key="weather_show" android:title="Show weather"
+            android:summary="From the Norwegian Meteorological Institute (MET Norway)"
+            android:defaultValue="false" />
+        <EditTextPreference android:key="weather_place" android:title="Location"
+            android:dialogMessage="A town or city. The frame looks it up and fills in the coordinates."
+            android:singleLine="true" />
+        <EditTextPreference android:key="weather_lat" android:title="Latitude"
+            android:dialogMessage="Decimal degrees, e.g. 51.507" android:inputType="numberDecimal|numberSigned"
+            android:singleLine="true" />
+        <EditTextPreference android:key="weather_lon" android:title="Longitude"
+            android:dialogMessage="Decimal degrees, e.g. -0.128" android:inputType="numberDecimal|numberSigned"
+            android:singleLine="true" />
+        <ListPreference android:key="weather_units" android:title="Units"
+            android:entries="@array/unit_names" android:entryValues="@array/unit_values"
+            android:defaultValue="c" android:summary="%s" />
+        <ListPreference android:key="weather_pos" android:title="Position"
+            android:entries="@array/pos_names" android:entryValues="@array/pos_values"
+            android:defaultValue="bottom_right" android:summary="%s" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Screen schedule">
+        <SwitchPreference android:key="night_enabled" android:title="Turn the screen off at night"
+            android:defaultValue="false" />
+        <Preference android:key="screen_off_permission" android:title="Allow turning the screen off"
+            android:persistent="false" />
+        <EditTextPreference android:key="night_off" android:title="Off at" android:defaultValue="22:00"
+            android:dialogMessage="24-hour time, e.g. 22:00" android:singleLine="true" />
+        <EditTextPreference android:key="night_on" android:title="On at" android:defaultValue="07:00"
+            android:dialogMessage="24-hour time, e.g. 07:00" android:singleLine="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Device">
+        <Preference android:key="wifi" android:title="Wi-Fi" android:persistent="false" />
+        <Preference android:key="android_settings" android:title="Android settings"
+            android:summary="Press Home or reboot to come back to the frame" android:persistent="false" />
+        <Preference android:key="other_home" android:title="Choose Home app"
+            android:summary="Switch the frame to another launcher" android:persistent="false" />
+        <Preference android:key="release_owner" android:title="Release device owner"
+            android:persistent="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="Updates">
+        <SwitchPreference android:key="update_auto" android:title="Install updates automatically"
+            android:defaultValue="true" />
+        <EditTextPreference android:key="update_repo" android:title="Update source (GitHub repository)"
+            android:defaultValue="alexbrazier/icloud-photo-slideshow" android:singleLine="true" />
+        <Preference android:key="check_update" android:title="Check for updates now" android:persistent="false" />
+    </PreferenceCategory>
+</PreferenceScreen>

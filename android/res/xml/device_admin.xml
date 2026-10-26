@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<device-admin>
+    <uses-policies>
+        <!-- Turns the screen off for the night schedule -->
+        <force-lock />
+    </uses-policies>
+</device-admin>

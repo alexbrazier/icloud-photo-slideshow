@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="interval_names">
+        <item>10 seconds</item><item>30 seconds</item><item>1 minute</item><item>2 minutes</item>
+        <item>5 minutes</item><item>10 minutes</item><item>30 minutes</item><item>1 hour</item>
+    </string-array>
+    <string-array name="interval_values">
+        <item>10</item><item>30</item><item>60</item><item>120</item>
+        <item>300</item><item>600</item><item>1800</item><item>3600</item>
+    </string-array>
+
+    <string-array name="fade_names">
+        <item>Cut</item><item>Quick fade</item><item>Fade</item><item>Slow fade</item>
+    </string-array>
+    <string-array name="fade_values">
+        <item>0</item><item>500</item><item>1000</item><item>2500</item>
+    </string-array>
+
+    <string-array name="order_names">
+        <item>Shuffle</item><item>Newest first</item><item>Oldest first</item>
+    </string-array>
+    <string-array name="order_values">
+        <item>shuffle</item><item>newest</item><item>oldest</item>
+    </string-array>
+
+    <string-array name="orientation_names">
+        <item>All photos</item><item>Landscape photos only</item><item>Portrait photos only</item>
+        <item>Photos matching the frame\'s orientation</item>
+    </string-array>
+    <string-array name="orientation_values">
+        <item>all</item><item>landscape</item><item>portrait</item><item>match</item>
+    </string-array>
+
+    <string-array name="fit_same_names">
+        <item>Fill the screen (crops the edges)</item>
+        <item>Fill unless it would crop a lot</item>
+        <item>Show the whole photo</item>
+    </string-array>
+    <string-array name="fit_same_values">
+        <item>fill</item><item>near</item><item>fit</item>
+    </string-array>
+
+    <string-array name="fit_other_names">
+        <item>Show the whole photo</item><item>Fill the screen (crops a lot)</item>
+    </string-array>
+    <string-array name="fit_other_values">
+        <item>fit</item><item>fill</item>
+    </string-array>
+
+    <string-array name="background_names">
+        <item>Blurred copy of the photo</item><item>Black</item><item>Dark grey</item><item>White</item>
+        <item>Custom colour</item>
+    </string-array>
+    <string-array name="background_values">
+        <item>blur</item><item>black</item><item>grey</item><item>white</item><item>custom</item>
+    </string-array>
+
+    <string-array name="caption_names">
+        <item>Nothing</item><item>Date taken</item><item>Album name</item><item>Date and album</item>
+    </string-array>
+    <string-array name="caption_values">
+        <item>none</item><item>date</item><item>album</item><item>both</item>
+    </string-array>
+
+    <string-array name="brightness_names">
+        <item>Android setting</item><item>100%</item><item>75%</item><item>50%</item><item>25%</item><item>10%</item>
+    </string-array>
+    <string-array name="brightness_values">
+        <item>system</item><item>100</item><item>75</item><item>50</item><item>25</item><item>10</item>
+    </string-array>
+
+    <string-array name="dim_names">
+        <item>50%</item><item>25%</item><item>10%</item><item>5%</item>
+    </string-array>
+    <string-array name="dim_values">
+        <item>50</item><item>25</item><item>10</item><item>5</item>
+    </string-array>
+
+    <string-array name="cache_names">
+        <item>500 MB</item><item>1 GB</item><item>2 GB</item><item>5 GB</item><item>10 GB</item>
+    </string-array>
+    <string-array name="cache_values">
+        <item>500</item><item>1024</item><item>2048</item><item>5120</item><item>10240</item>
+    </string-array>
+
+    <string-array name="pos_names">
+        <item>Bottom left</item><item>Bottom right</item><item>Top left</item><item>Top right</item>
+    </string-array>
+    <string-array name="pos_values">
+        <item>bottom_left</item><item>bottom_right</item><item>top_left</item><item>top_right</item>
+    </string-array>
+
+    <string-array name="size_names">
+        <item>Small</item><item>Medium</item><item>Large</item>
+    </string-array>
+    <string-array name="size_values">
+        <item>small</item><item>medium</item><item>large</item>
+    </string-array>
+
+    <string-array name="unit_names">
+        <item>Celsius</item><item>Fahrenheit</item>
+    </string-array>
+    <string-array name="unit_values">
+        <item>c</item><item>f</item>
+    </string-array>
+</resources>
