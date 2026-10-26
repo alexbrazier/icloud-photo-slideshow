@@ -80,17 +80,18 @@ then Phone setup on the frame, and paste the album link on your phone.
 
 ## Releasing updates
 
-GitHub Actions builds, signs and publishes the app (`.github/workflows/android-release.yml`)
-when you push a tag:
+GitHub Actions builds, signs and publishes the app (`.github/workflows/android-release.yml`).
+Start it by hand: on GitHub, **Actions → Android release → Run workflow**, pick the branch
+(normally `main`) and enter the version number. Or from a terminal:
 
 ```bash
-git tag android-v2
-git push origin android-v2
+gh workflow run android-release.yml -f version=2
 ```
 
-The number is the version code, so each release needs a higher one than the last; frames ignore
-anything not higher than what they have. Local builds are version 1, so start at `android-v2`.
-The release gets `icloud-frame-<N>.apk` and its SHA-256.
+The version is a whole number and must be higher than the last release, as frames only install
+a higher version than they have; the workflow checks this before building. Local builds are
+version 1, so start at 2. It creates the `android-v<version>` tag on the commit it built, and a
+release with `icloud-frame-<version>.apk` and its SHA-256.
 
 **One-time setup:** add two repository secrets (Settings → Secrets and variables → Actions → New
 repository secret), from the key the first local build made:
@@ -111,7 +112,7 @@ could edit the workflow to use the secrets), can sign updates frames will instal
 access to yourself, use two-factor sign-in on GitHub, and keep an offline backup of the
 keystore and its password; without them, frames can never be updated again.
 
-To build a release by hand instead: `VERSION_CODE=2 VERSION_NAME=2 ./build.sh`, then create a
+To build a release without Actions: `VERSION_CODE=2 VERSION_NAME=2 ./build.sh`, then create a
 GitHub release tagged `android-v2` with `build/icloud-frame.apk` attached.
 
 Frames check daily. As device owner they install updates silently; otherwise the daily check

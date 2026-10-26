@@ -1,5 +1,6 @@
-# Builds and signs the Android frame app when a tag like android-v2 is pushed, and publishes it
-# as a GitHub release, which frames pick up in their daily update check.
+# Builds and signs the Android frame app and publishes it as a GitHub release (tagged
+# android-v<version>), which frames pick up in their daily update check. Run it by hand from the
+# Actions tab: Android release → Run workflow, choose the branch and enter the version number.
 #
 # Needs two repository secrets (Settings → Secrets and variables → Actions):
 #   ANDROID_KEYSTORE_BASE64    base64 of ~/.android/icloud-frame.keystore
@@ -7,9 +8,12 @@
 name: Android release
 
 on:
-  push:
-    tags:
-      - "android-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number: a whole number higher than the last Android release (e.g. 2)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -24,18 +28,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Earlier tags, for the release notes
+          # Earlier tags, to check the version and for the release notes
           fetch-depth: 0
 
-      - name: Read the version from the tag
+      - name: Check the version
         id: version
+        env:
+          # Through env rather than inline, so the input can't inject shell
+          VERSION: ${{ inputs.version }}
         run: |
-          code="${GITHUB_REF_NAME#android-v}"
+          code="$(echo "$VERSION" | tr -d '[:space:]')"
           if ! [[ "$code" =~ ^[1-9][0-9]{0,8}$ ]]; then
-            echo "Tag $GITHUB_REF_NAME should be android-v<number>, e.g. android-v2" >&2
+            echo "Version should be a whole number, e.g. 2 (got '$VERSION')" >&2
+            exit 1
+          fi
+          latest=$(git tag --list 'android-v*' | sed 's/^android-v//' | grep -E '^[0-9]+$' | sort -n | tail -1 || true)
+          # Frames only install a higher version than they have
+          if [ -n "$latest" ] && [ "$code" -le "$latest" ]; then
+            echo "Version $code isn't higher than the last release, android-v$latest" >&2
             exit 1
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "previous=${latest:+android-v$latest}" >> "$GITHUB_OUTPUT"
+          echo "Releasing android-v$code from $GITHUB_REF_NAME at ${GITHUB_SHA::7} (previous: ${latest:-none})"
 
       - uses: actions/setup-java@v4
         with:
@@ -74,10 +89,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CODE: ${{ steps.version.outputs.code }}
+          PREVIOUS: ${{ steps.version.outputs.previous }}
         run: |
           cp android/build/icloud-frame.apk "icloud-frame-$CODE.apk"
           sha256sum "icloud-frame-$CODE.apk" > "icloud-frame-$CODE.apk.sha256"
-          # Notes cover the changes since the previous Android release
-          previous=$(git tag --list 'android-v*' --sort=-v:refname | grep -vx "$GITHUB_REF_NAME" | head -1 || true)
-          gh release create "$GITHUB_REF_NAME" "icloud-frame-$CODE.apk" "icloud-frame-$CODE.apk.sha256" \
-            --title "Android frame app $CODE" --generate-notes ${previous:+--notes-start-tag "$previous"}
+          # Creates the android-v<version> tag on the commit that was built; the notes cover the
+          # changes since the previous Android release
+          gh release create "android-v$CODE" "icloud-frame-$CODE.apk" "icloud-frame-$CODE.apk.sha256" \
+            --target "$GITHUB_SHA" --title "Android frame app $CODE" \
+            --generate-notes ${PREVIOUS:+--notes-start-tag "$PREVIOUS"}

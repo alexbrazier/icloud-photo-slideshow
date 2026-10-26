@@ -41,12 +41,12 @@ blanking on the screen. Logs: `journalctl -u icloud-frame -f`.
 
 ## Releases
 
-Pushing a tag like `pi-v1` makes GitHub Actions (`.github/workflows/pi-release.yml`) run the
-tests and publish `dist/` (both binaries and the install files) as a release:
+GitHub Actions (`.github/workflows/pi-release.yml`) runs the tests and publishes `dist/` (both
+binaries and the install files) as a release tagged `pi-v<version>`. Start it from **Actions → Pi
+release → Run workflow** with a version number higher than the last, or:
 
 ```bash
-git tag pi-v1
-git push origin pi-v1
+gh workflow run pi-release.yml -f version=1
 ```
 
 ## Settings

@@ -1,11 +1,15 @@
-# Builds the Raspberry Pi frame binary when a tag like pi-v1 is pushed, and publishes it with
-# the install files as a GitHub release (see pi/README.md).
+# Builds the Raspberry Pi frame binary and publishes it with the install files as a GitHub
+# release (tagged pi-v<version>, see pi/README.md). Run it by hand from the Actions tab:
+# Pi release → Run workflow, choose the branch and enter the version number.
 name: Pi release
 
 on:
-  push:
-    tags:
-      - "pi-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number: a whole number higher than the last Pi release (e.g. 1)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -13,11 +17,34 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    concurrency:
+      group: pi-release
+      cancel-in-progress: false
     defaults:
       run:
         working-directory: pi
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check the version
+        id: version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          code="$(echo "$VERSION" | tr -d '[:space:]')"
+          if ! [[ "$code" =~ ^[1-9][0-9]{0,8}$ ]]; then
+            echo "Version should be a whole number, e.g. 1 (got '$VERSION')" >&2
+            exit 1
+          fi
+          latest=$(git tag --list 'pi-v*' | sed 's/^pi-v//' | grep -E '^[0-9]+$' | sort -n | tail -1 || true)
+          if [ -n "$latest" ] && [ "$code" -le "$latest" ]; then
+            echo "Version $code isn't higher than the last release, pi-v$latest" >&2
+            exit 1
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "previous=${latest:+pi-v$latest}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-go@v5
         with:
@@ -31,8 +58,11 @@ jobs:
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
+          CODE: ${{ steps.version.outputs.code }}
+          PREVIOUS: ${{ steps.version.outputs.previous }}
         run: |
-          tar -czf "icloud-frame-$GITHUB_REF_NAME.tar.gz" -C dist .
-          sha256sum "icloud-frame-$GITHUB_REF_NAME.tar.gz" > "icloud-frame-$GITHUB_REF_NAME.tar.gz.sha256"
-          gh release create "$GITHUB_REF_NAME" "icloud-frame-$GITHUB_REF_NAME.tar.gz" \
-            "icloud-frame-$GITHUB_REF_NAME.tar.gz.sha256" --title "Raspberry Pi frame ${GITHUB_REF_NAME#pi-v}" --generate-notes
+          tar -czf "icloud-frame-pi-$CODE.tar.gz" -C dist .
+          sha256sum "icloud-frame-pi-$CODE.tar.gz" > "icloud-frame-pi-$CODE.tar.gz.sha256"
+          gh release create "pi-v$CODE" "icloud-frame-pi-$CODE.tar.gz" "icloud-frame-pi-$CODE.tar.gz.sha256" \
+            --target "$GITHUB_SHA" --title "Raspberry Pi frame $CODE" \
+            --generate-notes ${PREVIOUS:+--notes-start-tag "$PREVIOUS"}
